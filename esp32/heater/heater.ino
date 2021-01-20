@@ -444,12 +444,12 @@ void loop(void) {
     }
 
     // канал нагревателя?
-    if (SW_var.equals("OilHeat_on") && x == 1 && (temp_sensor < oil_temp) && y != 1) {
+    if (SW_var.equals("OilHeat_on") && x == 1 && (temp_sensor < oil_temp_hi) && y != 1) {
       oh = 1;
       digitalWrite(OILHEATPIN, HIGH);
       Serial.print("p4.pic=5\xFF\xFF\xFF");
     }
-    if (SW_var.equals("OilHeat_on") && (x == 0 || (temp_sensor >= oil_temp))) {
+    if (SW_var.equals("OilHeat_on") && (x == 0 || (temp_sensor >= oil_temp_low))) {
       Serial.print("page1.bt1.val=1\xFF\xFF\xFF");
     }
     if (SW_var.equals("OilHeat_off") && y != 1) {
@@ -457,7 +457,7 @@ void loop(void) {
       digitalWrite(OILHEATPIN, LOW);
       Serial.print("p4.pic=4\xFF\xFF\xFF");
     }
-    if (temp_sensor >= oil_temp) {
+    if (temp_sensor >= oil_temp_hi) {
       oh = 0;
       digitalWrite(OILHEATPIN, LOW);
       Serial.print("p4.pic=4\xFF\xFF\xFF");
