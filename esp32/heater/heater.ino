@@ -101,6 +101,7 @@ void obnulenie() {
   //  на дисплей значение по умолчанию
   indikacia("manual", 14);
   indikacia("off", 15);
+  indikacia("------", 16);
   fuellevel();
 }
 
@@ -117,6 +118,7 @@ void fuellevel() {
     Serial.print("page1.p1.pic=4\xFF\xFF\xFF"); // лампочку гасим
     digitalWrite(OILPUMPPIN, LOW); // выключили насос подкачки
     oil = 0;  // выключаем флаг насоса подкачки масла
+    obnulenie();
   }
   if (olsp == 0 && ohsp == 0) { // оба показывают дно
     indikacia("low", 23);
@@ -167,16 +169,16 @@ void zapusk() {
 
   //2й шаг проверка температуры масла
   if (bl1 == 1 && temp_sensor < oil_temp_low && x != 2) { //если уровень масла достаточный, температура масла ниже минимальной
-    if (oil == 1){  //если вдруг не выключен наос подкачки масла
+    if (oil == 1){  //если вдруг не выключен наcос подкачки масла
       oil = 0;
     Serial.print("bt3.val=1\xFF\xFF\xFF"); // переводим тумблер "подкачка выкл"
     Serial.print("page1.p1.pic=4\xFF\xFF\xFF"); // лампочку гасим
     digitalWrite(OILPUMPPIN, LOW); // Выключили насос подкачки
        }
     if (oh == 0){  // если тен подогрева выключен
+    digitalWrite(OILHEATPIN, HIGH); // включаем тэн
     Serial.print("page1.bt1.val=0\xFF\xFF\xFF"); // переводим тумблер "нагрев вкл"
     Serial.print("page1.p4.pic=5\xFF\xFF\xFF"); // лампочку зажигаем
-    digitalWrite(OILHEATPIN, HIGH); // включаем тэн
     oh = 1;
     indikacia("oilheat",15);
     }
@@ -196,20 +198,20 @@ void zapusk() {
     Serial.print("p5.pic=5\xFF\xFF\xFF");
     Serial.print("page1.bt2.val=0\xFF\xFF\xFF");
     indikacia("airflow",15);
-    delay(5000);
+    delay(35000);
 
     a = 1;
     digitalWrite(AIRPIN, HIGH);
     Serial.print("page1.p3.pic=5\xFF\xFF\xFF");
     Serial.print("page1.bt0.val=0\xFF\xFF\xFF");
     indikacia("airING",15);
-    delay(1500);
+    delay(35000);
 
     Serial.print("p6.pic=5\xFF\xFF\xFF");
     Serial.print("page1.bt4.val=0\xFF\xFF\xFF");
     digitalWrite(SPARKLEPIN, HIGH);
     indikacia("SPARKLE",15);
-    delay (1500);
+    delay (9500);
 
     digitalWrite(SPARKLEPIN, LOW);
     Serial.print("p6.pic=4\xFF\xFF\xFF");
@@ -217,11 +219,11 @@ void zapusk() {
     fs = digitalRead(FLAMESENSORPIN);
     if (fs == 1) {                             // если пламени нет
       indikacia("double SPARKLE",15);
-      delay (1500);
+      delay (9500);
       Serial.print("p6.pic=5\xFF\xFF\xFF");
       Serial.print("page1.bt4.val=0\xFF\xFF\xFF");
       digitalWrite(SPARKLEPIN, HIGH);
-      delay (1500);
+      delay (9500);
       digitalWrite(SPARKLEPIN, LOW);
       Serial.print("p6.pic=4\xFF\xFF\xFF");
       Serial.print("page1.bt4.val=1\xFF\xFF\xFF");
@@ -304,77 +306,6 @@ void ostanov() {
 
 void loop(void) {
 
-  // читаем DHT22
-  if ((millis() - dht22) >= period_DHT22) {
-    dht22 = millis();
-    float h = dht.readHumidity(); // считывание данных о температуре и влажности
-    delay(50);
-    float t = dht.readTemperature();// считываем температуру в градусах Цельсия:
-    delay(50);
-    float f = dht.readTemperature(true);// считываем температуру в градусах Фаренгейта:
-    delay(50);
-    // проверяем, корректно ли прочитались данные,
-    // и если нет, то выходим и пробуем снова:
-    if (isnan(h) || isnan(t) || isnan(f)) {
-      Serial.println("Failed to read from DHT sensor!"); // "Не удалось прочитать данные с датчика DHT!"
-    } else {
-      String var3 = "t1.txt=\"" + String(h) + "\"";
-      String var4 = "t8.txt=\"" + String(t) + "\"";
-      Serial.print(var3 + "\xFF\xFF\xFF");
-      Serial.print(var4 + "\xFF\xFF\xFF");
-      Serial.print("ref page0\xFF\xFF\xFF");
-    }
-  }
-
-  // Читаем датчик 18b20
-  if ((millis() - T18b20) >= period_18b20) {
-    T18b20 = millis();
-    sensors.requestTemperatures(); // Send the command to get temperatures
-    temp_sensor = sensors.getTempC(sensor1);
-    String var = String(sensors.getTempC(sensor1), 2);
-    String var2 = "t0.txt=\"" + var + "C" + "\"";
-    Serial.print(var2 + "\xFF\xFF\xFF");
-    String var3 = "ref page0";
-    Serial.print(var3 + "\xFF\xFF\xFF"); //отправляем сформированную строку в дисплей
-  }
-  
-  //проверяем датчик пламени, если что-то не так обрабатываем ошибку
-  if ((millis() - flame_sensor) >= period_flame_sensor) {
-    flame_sensor = millis();
-    fs = digitalRead(FLAMESENSORPIN);
-    if (x == 1 && fs == 1 || x == 0 && fs == 0) { //если состояние системы - работа и датчик пламени показывает отсутствие пламени
-      fireError(); //ошибка  горение
-    }
-  }
-
-  // Читаем датчик уровня топлива раз в 5 сек
-  if ((millis() - fuel_sensor) >= period_fuel_sensor) {
-    fuel_sensor = millis();
-    fuellevel();
-    }
-    
-  //проверка уровня бачка на дозаправку
-  if (bl1 == 0 && y == 1 && x == 1) { // если режим системы - работа, уровень масла минимум, а режим при этом автоматический - подкачиваем.
-    Serial.print("bt3.val=0\xFF\xFF\xFF"); // переводим тумблер "подкачка вкл"
-    Serial.print("page1.p1.pic=5\xFF\xFF\xFF"); // лампочку зажигаем
-    digitalWrite(OILPUMPPIN, HIGH); // Включили насос подкачки
-    oil = 1;
-  }
-
-  //поддержка температуры масла
-  if (bl1 == 1 && y == 1 && x == 1 && temp_sensor >= oil_temp_hi) {  // если в автоматическом режиме температура выше максимальной
-    Serial.print("page1.bt1.val=1\xFF\xFF\xFF"); // переводим тумблер "нагрев выкл"
-    Serial.print("page1.p4.pic=4\xFF\xFF\xFF"); // лампочку гасим
-    digitalWrite(OILHEATPIN, LOW); // выключаем тэн
-    oh = 0;
-  }
-  if (bl1 == 0 && y == 1 && x == 1 && temp_sensor < oil_temp_low){  // // если в автоматическом режиме температура ниже минимальной
-    Serial.print("page1.bt1.val=2\xFF\xFF\xFF"); // переводим тумблер "нагрев вкл"
-    Serial.print("page1.p4.pic=5\xFF\xFF\xFF"); // лампочку зажигаем
-    digitalWrite(OILHEATPIN, HIGH); // включаем тэн
-    oh = 1;
-  }
-      
   //проверяем данные управление от дисплея
   if ( Serial.available() > 0 ) {
     SW_var = Serial.readStringUntil(0xFF);
@@ -410,7 +341,6 @@ void loop(void) {
       Serial.print(var); //индикация на дисплее "автоматический"
       Serial.print("ref page0\xFF\xFF\xFF"); // обновить страницу
       x1 = 2;
-      zapusk(); // процедура запуска
     }
     if (SW_var.equals("AUTO_on") && x == 0) {
       Serial.print("page1.bt5.val=1\xFF\xFF\xFF");
@@ -421,13 +351,9 @@ void loop(void) {
       String var = String("page0.t14.txt=\"") + String("manual") + String("\"") + String("\xFF\xFF\xFF");
       Serial.print(var);
       Serial.print("ref page0\xFF\xFF\xFF"); //отправляем сформированную строку в дисплей
-    }
-    if (x1 == 2){
-      zapusk();
-      }
-    if (x1 == 3){
       ostanov();
-      }
+    }
+   
     // канал подачи воздуха?
     if (SW_var.equals("A_on") && x == 1 && y != 1) {
       a = 1;
@@ -448,6 +374,7 @@ void loop(void) {
       oh = 1;
       digitalWrite(OILHEATPIN, HIGH);
       Serial.print("p4.pic=5\xFF\xFF\xFF");
+      Serial.print("page1.bt1.val=0\xFF\xFF\xFF");
     }
     if (SW_var.equals("OilHeat_on") && (x == 0 || (temp_sensor >= oil_temp_low))) {
       Serial.print("page1.bt1.val=1\xFF\xFF\xFF");
@@ -486,7 +413,7 @@ void loop(void) {
     digitalWrite(OILPUMPPIN, HIGH);
     Serial.print("p1.pic=5\xFF\xFF\xFF");
   }
-  if (SW_var.equals("OILPUMP_on") && x == 0) {
+  if (SW_var.equals("OILPUMP_on") && (x == 0 || bl1 == 1)) {
     Serial.print("page1.bt3.val=1\xFF\xFF\xFF");
   }
   if (SW_var.equals("OILPUMP_off")) {
@@ -507,6 +434,87 @@ void loop(void) {
     Serial.print("p6.pic=4\xFF\xFF\xFF");
   }
 }
+  
+
+  // читаем DHT22
+  if ((millis() - dht22) >= period_DHT22) {
+    dht22 = millis();
+    float h = dht.readHumidity(); // считывание данных о температуре и влажности
+    delay(50);
+    float t = dht.readTemperature();// считываем температуру в градусах Цельсия:
+    delay(50);
+    float f = dht.readTemperature(true);// считываем температуру в градусах Фаренгейта:
+    delay(50);
+    // проверяем, корректно ли прочитались данные,
+    // и если нет, то выходим и пробуем снова:
+    if (isnan(h) || isnan(t) || isnan(f)) {
+      Serial.println("Failed to read from DHT sensor!"); // "Не удалось прочитать данные с датчика DHT!"
+    } else {
+      String var3 = "t1.txt=\"" + String(h) + "\"";
+      String var4 = "t8.txt=\"" + String(t) + "\"";
+      Serial.print(var3 + "\xFF\xFF\xFF");
+      Serial.print(var4 + "\xFF\xFF\xFF");
+      Serial.print("ref page0\xFF\xFF\xFF");
+    }
+  }
+
+  // Читаем датчик 18b20
+  if ((millis() - T18b20) >= period_18b20) {
+    T18b20 = millis();
+    sensors.requestTemperatures(); // Send the command to get temperatures
+    temp_sensor = sensors.getTempC(sensor1);
+    String var = String(sensors.getTempC(sensor1), 2);
+    String var2 = "t0.txt=\"" + var + "C" + "\"";
+    Serial.print(var2 + "\xFF\xFF\xFF");
+    String var3 = "ref page0";
+    Serial.print(var3 + "\xFF\xFF\xFF"); //отправляем сформированную строку в дисплей
+  }
+  
+  //проверяем датчик пламени, если что-то не так обрабатываем ошибку
+  if ((millis() - flame_sensor) >= period_flame_sensor) {
+    flame_sensor = millis();
+    fs = digitalRead(FLAMESENSORPIN);
+    if (x1 == 1 && fs == 1 || x1 == 0 && fs == 0) { //если состояние системы - работа и датчик пламени показывает отсутствие пламени
+      fireError(); //ошибка  горение
+    }
+  }
+
+  // Читаем датчик уровня топлива раз в 5 сек
+  if ((millis() - fuel_sensor) >= period_fuel_sensor) {
+    fuel_sensor = millis();
+    fuellevel();
+    }
+    
+  //проверка уровня бачка на дозаправку
+  if (bl1 == 0 && y == 1 && x == 1) { // если режим системы - работа, уровень масла минимум, а режим при этом автоматический - подкачиваем.
+    Serial.print("bt3.val=0\xFF\xFF\xFF"); // переводим тумблер "подкачка вкл"
+    Serial.print("page1.p1.pic=5\xFF\xFF\xFF"); // лампочку зажигаем
+    digitalWrite(OILPUMPPIN, HIGH); // Включили насос подкачки
+    oil = 1;
+  }
+
+  //поддержка температуры масла
+  if (y == 1 && x == 1 && temp_sensor >= oil_temp_hi) {  // если в автоматическом режиме температура выше максимальной
+    Serial.print("page1.bt1.val=1\xFF\xFF\xFF"); // переводим тумблер "нагрев выкл"
+    Serial.print("page1.p4.pic=4\xFF\xFF\xFF"); // лампочку гасим
+    digitalWrite(OILHEATPIN, LOW); // выключаем тэн
+    oh = 0;
+  }
+  if (bl1 != 0 && y == 1 && x == 1 && temp_sensor < oil_temp_low){  // // если в автоматическом режиме температура ниже минимальной и бак не пустой
+    Serial.print("page1.bt1.val=0\xFF\xFF\xFF"); // переводим тумблер "нагрев вкл"
+    Serial.print("page1.p4.pic=5\xFF\xFF\xFF"); // лампочку зажигаем
+    digitalWrite(OILHEATPIN, HIGH); // включаем тэн
+    oh = 1;
+  }
+  // если с дисплея 
+   if (x1 == 2){
+      zapusk();
+      }
+    if (x1 == 3){
+      ostanov();
+      }
+      
+
   
 
 }
