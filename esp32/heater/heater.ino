@@ -25,6 +25,8 @@ DeviceAddress sensor4 = { 0x28, 0x90, 0xC3, 0x5, 0x5, 0x0, 0x0, 0x77 };
 DHT dht(DHTPIN, DHTTYPE);
 
 String SW_var = "";
+String SW_var_temp = "";
+String SW_var_temp_num = "";
 // Нам нужно задать период таймера В МИЛЛИСЕКУНДАХ
 // дней*(24 часов в сутках)*(60 минут в часе)*(60 секунд в минуте)*(1000 миллисекунд в секунде)
 unsigned int period_DHT22 = 60000;
@@ -150,7 +152,6 @@ void indikacia(String k, int k1) {
 
 }
 
-
 void zapusk() {
   //1й шаг проверка уровня масла
   if (bl1 == 0 && x != 2) { // если уровень масла минимум и система не в состоянии "Авария"
@@ -250,8 +251,6 @@ void fireError() {
   ostanov();
 }
 
-
-
 void ostanov() {
   // выключаем клапан воздуха
   a = 0;
@@ -303,13 +302,15 @@ void ostanov() {
 }
 
 
-
 void loop(void) {
 
   //проверяем данные управление от дисплея
   if ( Serial.available() > 0 ) {
     SW_var = Serial.readStringUntil(0xFF);
     SW_var.remove(0, 1);
+    String SW_var_temp = SW_var.substring(0,3); // Выделяем идентификатор редактируемого поля параметра
+    String SW_var_temp_num = SW_var.substring(4); // Выделяем значение параметра
+    
 
     //включение системы?
     if (SW_var.equals("ALL_on")) {
@@ -400,8 +401,7 @@ void loop(void) {
     if (SW_var.equals("AF_on") && x == 0) {
       Serial.print("page1.bt2.val=1\xFF\xFF\xFF");
     }
-  
-  if (SW_var.equals("AF_off")) {
+    if (SW_var.equals("AF_off")) {
     af = 0;
     digitalWrite(AIRFLOWPIN, LOW);
     Serial.print("p5.pic=4\xFF\xFF\xFF");
@@ -433,9 +433,17 @@ void loop(void) {
     digitalWrite(STARTPIN, HIGH);
     Serial.print("p6.pic=4\xFF\xFF\xFF");
   }
-}
-  
 
+
+  // изменение параметров горелки с монитора?
+  if (SW_var_temp.equals("LOT")){
+      String var = String("page2.low.txt=\"") + SW_var_temp_num + String("\"") + String("\xFF\xFF\xFF");
+      Serial.print(var);
+      Serial.print("ref page2\xFF\xFF\xFF");
+    }
+
+  }
+    
   // читаем DHT22
   if ((millis() - dht22) >= period_DHT22) {
     dht22 = millis();
@@ -506,11 +514,12 @@ void loop(void) {
     digitalWrite(OILHEATPIN, HIGH); // включаем тэн
     oh = 1;
   }
-  // если с дисплея 
-   if (x1 == 2){
+ 
+  // проверка состояния горелки
+   if (x1 == 2){  //проверка состояния горелки, если состояние - запуск
       zapusk();
       }
-    if (x1 == 3){
+    if (x1 == 3){ //проверка состояния горелки, если состояние - останов
       ostanov();
       }
       
