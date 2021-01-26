@@ -441,7 +441,6 @@ void loop(void) {
       Serial.print(var);
       Serial.print("ref page2\xFF\xFF\xFF");
     }
-
   }
     
   // читаем DHT22
