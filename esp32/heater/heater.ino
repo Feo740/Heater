@@ -436,11 +436,36 @@ void loop(void) {
 
 
   // изменение параметров горелки с монитора?
-  if (SW_var_temp.equals("LOT")){
+  if (SW_var_temp.equals("LOT")){  // Если изменили нижнюю границу диапазона температуры масла
       String var = String("page2.low.txt=\"") + SW_var_temp_num + String("\"") + String("\xFF\xFF\xFF");
       Serial.print(var);
       Serial.print("ref page2\xFF\xFF\xFF");
     }
+
+    if (SW_var_temp.equals("HOT")){  // Если изменили верхнюю границу диапазона температуры масла
+      String var = String("page2.hi.txt=\"") + SW_var_temp_num + String("\"") + String("\xFF\xFF\xFF");
+      Serial.print(var);
+      Serial.print("ref page2\xFF\xFF\xFF");
+    }
+
+    if (SW_var_temp.equals("WTL")){  // Если изменили нижнюю границу диапазона температуры теплоносителя
+      String var = String("page2.wlow.txt=\"") + SW_var_temp_num + String("\"") + String("\xFF\xFF\xFF");
+      Serial.print(var);
+      Serial.print("ref page2\xFF\xFF\xFF");
+    }
+
+    if (SW_var_temp.equals("WTH")){  // Если изменили верхнюю границу диапазона температуры теплоносителя
+      String var = String("page2.whi.txt=\"") + SW_var_temp_num + String("\"") + String("\xFF\xFF\xFF");
+      Serial.print(var);
+      Serial.print("ref page2\xFF\xFF\xFF");
+    }
+
+    if (SW_var_temp.equals("SKD")){  // Если изменили длительность подачи искры
+      String var = String("page2.sd.txt=\"") + SW_var_temp_num + String("\"") + String("\xFF\xFF\xFF");
+      Serial.print(var);
+      Serial.print("ref page2\xFF\xFF\xFF");
+    }
+    
   }
     
   // читаем DHT22
