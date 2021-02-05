@@ -2,6 +2,14 @@
 #include "DHT.h"
 #include "OneWire.h"
 #include "DallasTemperature.h"
+#include "EEPROM.h"
+#include "WIFI.h"
+
+//настройки подключение к сети Wifi
+const char* ssid = "mywifi";
+const char* password = "";
+
+#define EEPROM_SIZE 1 //количество байтов, к которым хотим получить доступ в EEPROM
 #define DHTPIN 14     // контакт, к которому подключается DHT 
 #define AIRPIN 27     //контакт датчика подачи воздуха
 #define OILHEATPIN 32 // контакт включения подогревателя масла
@@ -47,14 +55,25 @@ byte st = 0; // флаг состояния выключателя горелк�
 byte fs = 0; // переменная состояния канала датчика пламени
 byte oil = 0; // флаг состояния насоса подкачки масла 0-выключен, 1-включен
 byte bl1 = 0; // флаг состояния датчика уровня масла в бачке 0-пустой, 1- полный 2-средний 3-неисправный
-float oil_temp_hi = 27; //температура масла для выключения тена
-float oil_temp_low = 25; // температура масла для включения тена
+float oil_temp_hi; //температура масла для выключения тена
+float oil_temp_low;// температура масла для включения тена
+float water_temp_hi; //температура масла для выключения тена
+float water_temp_low;// температура масла для включения тена
+
 float temp_sensor = 0;
 String var;
 byte olsp = 0;
 byte ohsp = 0;
 
 void setup(void) {
+  
+  
+  // чтение настроек с флэш-памяти
+  EEPROM.begin(EEPROM_SIZE); //инициализация EEPROM с определенным размером
+  oil_temp_hi = EEPROM.read(0); // читаем последнее значение из флеш-памяти
+  oil_temp_low = EEPROM.read(1); // читаем последнее значение из флеш-памяти
+  water_temp_hi = EEPROM.read(2); // читаем последнее значение из флеш-памяти
+  water_temp_low = EEPROM.read(3); // читаем последнее значение из флеш-памяти
   dht22 = millis();
   T18b20 = millis();
   flame_sensor = millis();
@@ -79,6 +98,18 @@ void setup(void) {
   fs = digitalRead(FLAMESENSORPIN);
   // инициализация дисплея
   obnulenie();
+
+  // подключение к сети wifi
+  Wifi.begin(ssid, password);
+  while (WIFI.status()!= WL_CONNECTED){
+    delay(500);
+    Serial.print('.');
+  }
+    Serial.println('\n');
+    Serial.println('Connection established');
+    Serial.print('IP adress:\t');
+    Serial.println(WIFI.localIP());  
+    // попробовать WIFI.localIP().toString()
 }
 
 //перевод системы в начальное состояние
@@ -104,6 +135,26 @@ void obnulenie() {
   indikacia("manual", 14);
   indikacia("off", 15);
   indikacia("------", 16);
+  // выводим на дисплей значения настроек 
+  int temp = oil_temp_low;
+  String temp1 = String(temp,2); 
+  String var = String("page2.low.txt=\"") + temp1 + String("\"") + String("\xFF\xFF\xFF");
+  Serial.print(var);
+  int temp = oil_temp_hi;
+  String temp1 = String(temp,2);
+  String var = String("page2.hi.txt=\"") + temp1 + String("\"") + String("\xFF\xFF\xFF");
+  Serial.print(var);
+  int temp = water_temp_low;
+  String temp1 = String(temp,2);
+  String var = String("page2.wlow.txt=\"") + temp1 + String("\"") + String("\xFF\xFF\xFF");
+  Serial.print(var);
+  int temp = water_temp_hi;
+  String temp1 = String(temp,2);
+  String var = String("page2.whi.txt=\"") + temp1 + String("\"") + String("\xFF\xFF\xFF");
+  Serial.print(var);
+  Serial.print("ref page2\xFF\xFF\xFF");
+
+  // проверяем уровень топлива
   fuellevel();
 }
 
@@ -437,35 +488,53 @@ void loop(void) {
 
   // изменение параметров горелки с монитора?
   if (SW_var_temp.equals("LOT")){  // Если изменили нижнюю границу диапазона температуры масла
+    //обновляем индикацию на дисплее 
       String var = String("page2.low.txt=\"") + SW_var_temp_num + String("\"") + String("\xFF\xFF\xFF");
       Serial.print(var);
       Serial.print("ref page2\xFF\xFF\xFF");
+      // записываем новое значение во флеш
+      int temp = SW_var_temp_num.toInt();
+      oil_temp_low = temp;
+      EEPROM.write(0,oil_temp_low);
+      EEPROM.commit();
     }
 
     if (SW_var_temp.equals("HOT")){  // Если изменили верхнюю границу диапазона температуры масла
+      //обновляем индикацию на дисплее 
       String var = String("page2.hi.txt=\"") + SW_var_temp_num + String("\"") + String("\xFF\xFF\xFF");
       Serial.print(var);
       Serial.print("ref page2\xFF\xFF\xFF");
+      // записываем новое значение во флеш
+      int temp = SW_var_temp_num.toInt();
+      oil_temp_hi = temp;
+      EEPROM.write(1,oil_temp_hi);
+      EEPROM.commit();
     }
 
     if (SW_var_temp.equals("WTL")){  // Если изменили нижнюю границу диапазона температуры теплоносителя
+      //обновляем индикацию на дисплее 
       String var = String("page2.wlow.txt=\"") + SW_var_temp_num + String("\"") + String("\xFF\xFF\xFF");
       Serial.print(var);
       Serial.print("ref page2\xFF\xFF\xFF");
+      // записываем новое значение во флеш
+      int temp = SW_var_temp_num.toInt();
+      water_temp_low = temp;
+      EEPROM.write(2,water_temp_low);
+      EEPROM.commit();
     }
 
     if (SW_var_temp.equals("WTH")){  // Если изменили верхнюю границу диапазона температуры теплоносителя
+      //обновляем индикацию на дисплее 
       String var = String("page2.whi.txt=\"") + SW_var_temp_num + String("\"") + String("\xFF\xFF\xFF");
       Serial.print(var);
       Serial.print("ref page2\xFF\xFF\xFF");
+       // записываем новое значение во флеш
+      int temp = SW_var_temp_num.toInt();
+      water_temp_hi = temp;
+      EEPROM.write(3,water_temp_hi);
+      EEPROM.commit();
     }
-
-    if (SW_var_temp.equals("SKD")){  // Если изменили длительность подачи искры
-      String var = String("page2.sd.txt=\"") + SW_var_temp_num + String("\"") + String("\xFF\xFF\xFF");
-      Serial.print(var);
-      Serial.print("ref page2\xFF\xFF\xFF");
-    }
-    
+  
   }
     
   // читаем DHT22
