@@ -1,15 +1,17 @@
+#include <ETH.h>
+#include <WiFi.h>
 
 #include "DHT.h"
 #include "OneWire.h"
 #include "DallasTemperature.h"
 #include "EEPROM.h"
-#include "WIFI.h"
+
 
 //настройки подключение к сети Wifi
-const char* ssid = "mywifi";
-const char* password = "";
+const char* ssid = "MikroTik-1EA2D2";
+const char* password = "ferrari220";
 
-#define EEPROM_SIZE 1 //количество байтов, к которым хотим получить доступ в EEPROM
+#define EEPROM_SIZE 4 //количество байтов, к которым хотим получить доступ в EEPROM
 #define DHTPIN 14     // контакт, к которому подключается DHT 
 #define AIRPIN 27     //контакт датчика подачи воздуха
 #define OILHEATPIN 32 // контакт включения подогревателя масла
@@ -32,12 +34,15 @@ DeviceAddress sensor3 = { 0x28, 0x4, 0xC2, 0x5, 0x5, 0x0, 0x0, 0xD7 };
 DeviceAddress sensor4 = { 0x28, 0x90, 0xC3, 0x5, 0x5, 0x0, 0x0, 0x77 };
 DHT dht(DHTPIN, DHTTYPE);
 
+IPAddress ip;
+
 String SW_var = "";
 String SW_var_temp = "";
 String SW_var_temp_num = "";
+
 // Нам нужно задать период таймера В МИЛЛИСЕКУНДАХ
 // дней*(24 часов в сутках)*(60 минут в часе)*(60 секунд в минуте)*(1000 миллисекунд в секунде)
-unsigned int period_DHT22 = 60000;
+unsigned int period_DHT22 = 60000; // его же используем для обновления IP
 unsigned int period_18b20 = 10000;
 unsigned int period_flame_sensor = 2000;
 unsigned int period_fuel_sensor = 10000;
@@ -66,12 +71,12 @@ byte olsp = 0;
 byte ohsp = 0;
 
 void setup(void) {
-  
-  
+
+
   // чтение настроек с флэш-памяти
   EEPROM.begin(EEPROM_SIZE); //инициализация EEPROM с определенным размером
-  oil_temp_hi = EEPROM.read(0); // читаем последнее значение из флеш-памяти
-  oil_temp_low = EEPROM.read(1); // читаем последнее значение из флеш-памяти
+  oil_temp_hi = EEPROM.read(1); // читаем последнее значение из флеш-памяти
+  oil_temp_low = EEPROM.read(0); // читаем последнее значение из флеш-памяти
   water_temp_hi = EEPROM.read(2); // читаем последнее значение из флеш-памяти
   water_temp_low = EEPROM.read(3); // читаем последнее значение из флеш-памяти
   dht22 = millis();
@@ -100,16 +105,12 @@ void setup(void) {
   obnulenie();
 
   // подключение к сети wifi
-  Wifi.begin(ssid, password);
-  while (WIFI.status()!= WL_CONNECTED){
-    delay(500);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
     Serial.print('.');
   }
-    Serial.println('\n');
-    Serial.println('Connection established');
-    Serial.print('IP adress:\t');
-    Serial.println(WIFI.localIP());  
-    // попробовать WIFI.localIP().toString()
+  IPAddress ip = WiFi.localIP();
 }
 
 //перевод системы в начальное состояние
@@ -135,24 +136,28 @@ void obnulenie() {
   indikacia("manual", 14);
   indikacia("off", 15);
   indikacia("------", 16);
-  // выводим на дисплей значения настроек 
-  int temp = oil_temp_low;
-  String temp1 = String(temp,2); 
+  // выводим на дисплей значения настроек
+  
+  String temp1 = String(oil_temp_low, 2);
   String var = String("page2.low.txt=\"") + temp1 + String("\"") + String("\xFF\xFF\xFF");
   Serial.print(var);
-  int temp = oil_temp_hi;
-  String temp1 = String(temp,2);
-  String var = String("page2.hi.txt=\"") + temp1 + String("\"") + String("\xFF\xFF\xFF");
+  temp1 = String(oil_temp_hi, 2);
+  var = String("page2.hi.txt=\"") + temp1 + String("\"") + String("\xFF\xFF\xFF");
   Serial.print(var);
-  int temp = water_temp_low;
-  String temp1 = String(temp,2);
-  String var = String("page2.wlow.txt=\"") + temp1 + String("\"") + String("\xFF\xFF\xFF");
+  temp1 = String(water_temp_low, 2);
+  var = String("page2.wlow.txt=\"") + temp1 + String("\"") + String("\xFF\xFF\xFF");
   Serial.print(var);
-  int temp = water_temp_hi;
-  String temp1 = String(temp,2);
-  String var = String("page2.whi.txt=\"") + temp1 + String("\"") + String("\xFF\xFF\xFF");
+  temp1 = String(water_temp_hi, 2);
+  var = String("page2.whi.txt=\"") + temp1 + String("\"") + String("\xFF\xFF\xFF");
   Serial.print(var);
   Serial.print("ref page2\xFF\xFF\xFF");
+  
+  
+  Serial.print("page0.ip.txt=\""); 
+  Serial.print(ip);
+  Serial.print(String("\"") + String("\xFF\xFF\xFF"));
+  Serial.print("ref page0\xFF\xFF\xFF");
+  
 
   // проверяем уровень топлива
   fuellevel();
@@ -184,12 +189,12 @@ void fuellevel() {
   if (olsp == 1 && ohsp == 1) {
     indikacia("hi", 23);
     bl1 = 1;
-      if (oil != 0) { // если флаг насоса подкачки масла пока зывает включенны насос
-    Serial.print("bt3.val=1\xFF\xFF\xFF"); // переводим тумблер "подкачка выкл"
-    Serial.print("page1.p1.pic=4\xFF\xFF\xFF"); // лампочку гасим
-    digitalWrite(OILPUMPPIN, LOW); // выключили насос подкачки
-    oil = 0;
-      }
+    if (oil != 0) { // если флаг насоса подкачки масла пока зывает включенны насос
+      Serial.print("bt3.val=1\xFF\xFF\xFF"); // переводим тумблер "подкачка выкл"
+      Serial.print("page1.p1.pic=4\xFF\xFF\xFF"); // лампочку гасим
+      digitalWrite(OILPUMPPIN, LOW); // выключили насос подкачки
+      oil = 0;
+    }
   }
 }
 
@@ -197,7 +202,7 @@ void fuellevel() {
 void indikacia(String k, int k1) {
 
   String stringVar = String(k1);
-  String var = String("page0.t")+ stringVar +String(".txt=\"") + k + String("\"") + String("\xFF\xFF\xFF");
+  String var = String("page0.t") + stringVar + String(".txt=\"") + k + String("\"") + String("\xFF\xFF\xFF");
   Serial.print(var); //индикация на дисплее
   Serial.print("ref page0\xFF\xFF\xFF"); // обновить страницу
 
@@ -207,62 +212,62 @@ void zapusk() {
   //1й шаг проверка уровня масла
   if (bl1 == 0 && x != 2) { // если уровень масла минимум и система не в состоянии "Авария"
     if ((millis() - fuel_sensor) >= period_fuel_sensor) {
-    fuel_sensor = millis();
-    fuellevel();
+      fuel_sensor = millis();
+      fuellevel();
     }
-    if (oil == 0){
+    if (oil == 0) {
       oil = 1;
-    Serial.print("bt3.val=0\xFF\xFF\xFF"); // переводим тумблер "подкачка вкл"
-    Serial.print("page1.p1.pic=5\xFF\xFF\xFF"); // лампочку зажигаем
-    digitalWrite(OILPUMPPIN, HIGH); // Включили насос подкачки
-    indikacia("oilpump",15);
+      Serial.print("bt3.val=0\xFF\xFF\xFF"); // переводим тумблер "подкачка вкл"
+      Serial.print("page1.p1.pic=5\xFF\xFF\xFF"); // лампочку зажигаем
+      digitalWrite(OILPUMPPIN, HIGH); // Включили насос подкачки
+      indikacia("oilpump", 15);
     }
   }
 
   //2й шаг проверка температуры масла
   if (bl1 == 1 && temp_sensor < oil_temp_low && x != 2) { //если уровень масла достаточный, температура масла ниже минимальной
-    if (oil == 1){  //если вдруг не выключен наcос подкачки масла
+    if (oil == 1) { //если вдруг не выключен наcос подкачки масла
       oil = 0;
-    Serial.print("bt3.val=1\xFF\xFF\xFF"); // переводим тумблер "подкачка выкл"
-    Serial.print("page1.p1.pic=4\xFF\xFF\xFF"); // лампочку гасим
-    digitalWrite(OILPUMPPIN, LOW); // Выключили насос подкачки
-       }
-    if (oh == 0){  // если тен подогрева выключен
-    digitalWrite(OILHEATPIN, HIGH); // включаем тэн
-    Serial.print("page1.bt1.val=0\xFF\xFF\xFF"); // переводим тумблер "нагрев вкл"
-    Serial.print("page1.p4.pic=5\xFF\xFF\xFF"); // лампочку зажигаем
-    oh = 1;
-    indikacia("oilheat",15);
+      Serial.print("bt3.val=1\xFF\xFF\xFF"); // переводим тумблер "подкачка выкл"
+      Serial.print("page1.p1.pic=4\xFF\xFF\xFF"); // лампочку гасим
+      digitalWrite(OILPUMPPIN, LOW); // Выключили насос подкачки
+    }
+    if (oh == 0) { // если тен подогрева выключен
+      digitalWrite(OILHEATPIN, HIGH); // включаем тэн
+      Serial.print("page1.bt1.val=0\xFF\xFF\xFF"); // переводим тумблер "нагрев вкл"
+      Serial.print("page1.p4.pic=5\xFF\xFF\xFF"); // лампочку зажигаем
+      oh = 1;
+      indikacia("oilheat", 15);
     }
   }
   //3й шаг включаем поддув
-  if (bl1 == 1 && temp_sensor >= oil_temp_low && x != 2) { // масла достаточно, температура масла выше мин 
+  if (bl1 == 1 && temp_sensor >= oil_temp_low && x != 2) { // масла достаточно, температура масла выше мин
 
-    if(oh == 1 && temp_sensor >= oil_temp_hi){ //если обогреватель включен при температуре выше максимальной - выключаем тен
-    Serial.print("page1.bt1.val=1\xFF\xFF\xFF"); // переводим тумблер "нагрев выкл"
-    Serial.print("page1.p4.pic=4\xFF\xFF\xFF"); // лампочку гасим
-    digitalWrite(OILHEATPIN, LOW); // выключаем тэн
-    oh = 0;
+    if (oh == 1 && temp_sensor >= oil_temp_hi) { //если обогреватель включен при температуре выше максимальной - выключаем тен
+      Serial.print("page1.bt1.val=1\xFF\xFF\xFF"); // переводим тумблер "нагрев выкл"
+      Serial.print("page1.p4.pic=4\xFF\xFF\xFF"); // лампочку гасим
+      digitalWrite(OILHEATPIN, LOW); // выключаем тэн
+      oh = 0;
     }
 
     af = 1;
     digitalWrite(AIRFLOWPIN, HIGH);
     Serial.print("p5.pic=5\xFF\xFF\xFF");
     Serial.print("page1.bt2.val=0\xFF\xFF\xFF");
-    indikacia("airflow",15);
+    indikacia("airflow", 15);
     delay(35000);
 
     a = 1;
     digitalWrite(AIRPIN, HIGH);
     Serial.print("page1.p3.pic=5\xFF\xFF\xFF");
     Serial.print("page1.bt0.val=0\xFF\xFF\xFF");
-    indikacia("airING",15);
+    indikacia("airING", 15);
     delay(35000);
 
     Serial.print("p6.pic=5\xFF\xFF\xFF");
     Serial.print("page1.bt4.val=0\xFF\xFF\xFF");
     digitalWrite(SPARKLEPIN, HIGH);
-    indikacia("SPARKLE",15);
+    indikacia("SPARKLE", 15);
     delay (9500);
 
     digitalWrite(SPARKLEPIN, LOW);
@@ -270,7 +275,7 @@ void zapusk() {
     Serial.print("page1.bt4.val=1\xFF\xFF\xFF");
     fs = digitalRead(FLAMESENSORPIN);
     if (fs == 1) {                             // если пламени нет
-      indikacia("double SPARKLE",15);
+      indikacia("double SPARKLE", 15);
       delay (9500);
       Serial.print("p6.pic=5\xFF\xFF\xFF");
       Serial.print("page1.bt4.val=0\xFF\xFF\xFF");
@@ -317,14 +322,14 @@ void ostanov() {
   //проверяем потухла или нет
   fs = digitalRead(FLAMESENSORPIN);
   if (fs == 1) {                             // если пламени нет, система остановилась в штатном режиме
-    x1 = 0;     // состояние горелки "не горит" 
+    x1 = 0;     // состояние горелки "не горит"
     String var = String("page0.t15.txt=\"") + String("fire off") + String("\"") + String("\xFF\xFF\xFF");
     Serial.print(var); //индикация на дисплее "горение"
     Serial.print("ref page0\xFF\xFF\xFF"); // обновить страницу
     x = 0;    // состояние системы "стоп"
     y = 0;    // режим горелки "ручной"
     obnulenie();
-    
+
   } else {
     String var = String("page0.t15.txt=\"") + String("error fire off") + String("\"") + String("\xFF\xFF\xFF");
     Serial.print(var); //индикация на дисплее "горение"
@@ -334,10 +339,12 @@ void ostanov() {
 
 
   //выключаем подогрев
+  if (oh != 0){
   oh = 0;
   Serial.print("page1.bt1.val=1\xFF\xFF\xFF"); // переводим тумблер "нагрев выкл"
   Serial.print("page1.p1.pic=4\xFF\xFF\xFF"); // лампочку гасим
   digitalWrite(OILHEATPIN, LOW); // выключаем тэн
+  }
   //выключаем подкачку
   Serial.print("bt3.val=1\xFF\xFF\xFF"); // переводим тумблер "подкачка выкл"
   Serial.print("page1.p1.pic=4\xFF\xFF\xFF"); // лампочку гасим
@@ -359,9 +366,9 @@ void loop(void) {
   if ( Serial.available() > 0 ) {
     SW_var = Serial.readStringUntil(0xFF);
     SW_var.remove(0, 1);
-    String SW_var_temp = SW_var.substring(0,3); // Выделяем идентификатор редактируемого поля параметра
+    String SW_var_temp = SW_var.substring(0, 3); // Выделяем идентификатор редактируемого поля параметра
     String SW_var_temp_num = SW_var.substring(4); // Выделяем значение параметра
-    
+    byte temp_num = SW_var.substring(4).toInt();
 
     //включение системы?
     if (SW_var.equals("ALL_on")) {
@@ -405,7 +412,7 @@ void loop(void) {
       Serial.print("ref page0\xFF\xFF\xFF"); //отправляем сформированную строку в дисплей
       ostanov();
     }
-   
+
     // канал подачи воздуха?
     if (SW_var.equals("A_on") && x == 1 && y != 1) {
       a = 1;
@@ -436,7 +443,7 @@ void loop(void) {
       digitalWrite(OILHEATPIN, LOW);
       Serial.print("p4.pic=4\xFF\xFF\xFF");
     }
-    if (temp_sensor >= oil_temp_hi) {
+    if (temp_sensor >= oil_temp_hi && oh != 0) {
       oh = 0;
       digitalWrite(OILHEATPIN, LOW);
       Serial.print("p4.pic=4\xFF\xFF\xFF");
@@ -453,90 +460,90 @@ void loop(void) {
       Serial.print("page1.bt2.val=1\xFF\xFF\xFF");
     }
     if (SW_var.equals("AF_off")) {
-    af = 0;
-    digitalWrite(AIRFLOWPIN, LOW);
-    Serial.print("p5.pic=4\xFF\xFF\xFF");
-  }
+      af = 0;
+      digitalWrite(AIRFLOWPIN, LOW);
+      Serial.print("p5.pic=4\xFF\xFF\xFF");
+    }
 
-  //канал накачки масла?
-  if (SW_var.equals("OILPUMP_on") && x == 1 && (bl1 == 0 || bl1 == 2)) {
-    oil = 1;
-    digitalWrite(OILPUMPPIN, HIGH);
-    Serial.print("p1.pic=5\xFF\xFF\xFF");
-  }
-  if (SW_var.equals("OILPUMP_on") && (x == 0 || bl1 == 1)) {
-    Serial.print("page1.bt3.val=1\xFF\xFF\xFF");
-  }
-  if (SW_var.equals("OILPUMP_off")) {
-    oil = 0;
-    digitalWrite(OILPUMPPIN, LOW);
-    Serial.print("p1.pic=4\xFF\xFF\xFF");
-  }
+    //канал накачки масла?
+    if (SW_var.equals("OILPUMP_on") && x == 1 && (bl1 == 0 || bl1 == 2)) {
+      oil = 1;
+      digitalWrite(OILPUMPPIN, HIGH);
+      Serial.print("p1.pic=5\xFF\xFF\xFF");
+    }
+    if (SW_var.equals("OILPUMP_on") && (x == 0 || bl1 == 1)) {
+      Serial.print("page1.bt3.val=1\xFF\xFF\xFF");
+    }
+    if (SW_var.equals("OILPUMP_off")) {
+      oil = 0;
+      digitalWrite(OILPUMPPIN, LOW);
+      Serial.print("p1.pic=4\xFF\xFF\xFF");
+    }
 
-  //Канал искры?
-  if (SW_var.equals("START_on") && x == 1 && y != 1) {
-    Serial.print("p6.pic=5\xFF\xFF\xFF");
-  }
-  if (SW_var.equals("START_on") && x == 0) {
-    Serial.print("page1.bt4.val=1\xFF\xFF\xFF");
-  }
-  if (SW_var.equals("START_off") && y != 1) {
-    digitalWrite(STARTPIN, HIGH);
-    Serial.print("p6.pic=4\xFF\xFF\xFF");
-  }
+    //Канал искры?
+    if (SW_var.equals("START_on") && x == 1 && y != 1) {
+      Serial.print("p6.pic=5\xFF\xFF\xFF");
+    }
+    if (SW_var.equals("START_on") && x == 0) {
+      Serial.print("page1.bt4.val=1\xFF\xFF\xFF");
+    }
+    if (SW_var.equals("START_off") && y != 1) {
+      digitalWrite(STARTPIN, HIGH);
+      Serial.print("p6.pic=4\xFF\xFF\xFF");
+    }
 
 
-  // изменение параметров горелки с монитора?
-  if (SW_var_temp.equals("LOT")){  // Если изменили нижнюю границу диапазона температуры масла
-    //обновляем индикацию на дисплее 
+    // изменение параметров горелки с монитора?
+    if (SW_var_temp.equals("LOT")) { // Если изменили нижнюю границу диапазона температуры масла
+      //обновляем индикацию на дисплее
       String var = String("page2.low.txt=\"") + SW_var_temp_num + String("\"") + String("\xFF\xFF\xFF");
       Serial.print(var);
       Serial.print("ref page2\xFF\xFF\xFF");
       // записываем новое значение во флеш
-      int temp = SW_var_temp_num.toInt();
-      oil_temp_low = temp;
-      EEPROM.write(0,oil_temp_low);
+         
+      EEPROM.write(0, temp_num);
       EEPROM.commit();
+      oil_temp_low = SW_var_temp_num.toInt();
     }
 
-    if (SW_var_temp.equals("HOT")){  // Если изменили верхнюю границу диапазона температуры масла
-      //обновляем индикацию на дисплее 
+    if (SW_var_temp.equals("HOT")) { // Если изменили верхнюю границу диапазона температуры масла
+      //обновляем индикацию на дисплее
       String var = String("page2.hi.txt=\"") + SW_var_temp_num + String("\"") + String("\xFF\xFF\xFF");
       Serial.print(var);
       Serial.print("ref page2\xFF\xFF\xFF");
       // записываем новое значение во флеш
-      int temp = SW_var_temp_num.toInt();
-      oil_temp_hi = temp;
-      EEPROM.write(1,oil_temp_hi);
+         
+      EEPROM.write(1, temp_num);
       EEPROM.commit();
+      oil_temp_hi = SW_var_temp_num.toInt();
     }
 
-    if (SW_var_temp.equals("WTL")){  // Если изменили нижнюю границу диапазона температуры теплоносителя
-      //обновляем индикацию на дисплее 
+    if (SW_var_temp.equals("WTL")) { // Если изменили нижнюю границу диапазона температуры теплоносителя
+      //обновляем индикацию на дисплее
       String var = String("page2.wlow.txt=\"") + SW_var_temp_num + String("\"") + String("\xFF\xFF\xFF");
       Serial.print(var);
       Serial.print("ref page2\xFF\xFF\xFF");
       // записываем новое значение во флеш
-      int temp = SW_var_temp_num.toInt();
-      water_temp_low = temp;
-      EEPROM.write(2,water_temp_low);
+           
+      EEPROM.write(3, temp_num);
       EEPROM.commit();
+      water_temp_low = SW_var_temp_num.toInt();
     }
 
-    if (SW_var_temp.equals("WTH")){  // Если изменили верхнюю границу диапазона температуры теплоносителя
-      //обновляем индикацию на дисплее 
+    if (SW_var_temp.equals("WTH")) { // Если изменили верхнюю границу диапазона температуры теплоносителя
+      //обновляем индикацию на дисплее
       String var = String("page2.whi.txt=\"") + SW_var_temp_num + String("\"") + String("\xFF\xFF\xFF");
       Serial.print(var);
       Serial.print("ref page2\xFF\xFF\xFF");
-       // записываем новое значение во флеш
-      int temp = SW_var_temp_num.toInt();
-      water_temp_hi = temp;
-      EEPROM.write(3,water_temp_hi);
+      // записываем новое значение во флеш
+
+      EEPROM.write(2, temp_num);
       EEPROM.commit();
+      water_temp_hi = SW_var_temp_num.toInt();;
     }
-  
+
   }
-    
+
   // читаем DHT22
   if ((millis() - dht22) >= period_DHT22) {
     dht22 = millis();
@@ -557,6 +564,14 @@ void loop(void) {
       Serial.print(var4 + "\xFF\xFF\xFF");
       Serial.print("ref page0\xFF\xFF\xFF");
     }
+
+    //заодно обновим IP
+
+    IPAddress ip = WiFi.localIP();
+    Serial.print("page0.ip.txt=\""); 
+  Serial.print(ip);
+  Serial.print(String("\"") + String("\xFF\xFF\xFF"));
+  Serial.print("ref page0\xFF\xFF\xFF");
   }
 
   // Читаем датчик 18b20
@@ -570,7 +585,7 @@ void loop(void) {
     String var3 = "ref page0";
     Serial.print(var3 + "\xFF\xFF\xFF"); //отправляем сформированную строку в дисплей
   }
-  
+
   //проверяем датчик пламени, если что-то не так обрабатываем ошибку
   if ((millis() - flame_sensor) >= period_flame_sensor) {
     flame_sensor = millis();
@@ -584,8 +599,8 @@ void loop(void) {
   if ((millis() - fuel_sensor) >= period_fuel_sensor) {
     fuel_sensor = millis();
     fuellevel();
-    }
-    
+  }
+
   //проверка уровня бачка на дозаправку
   if (bl1 == 0 && y == 1 && x == 1) { // если режим системы - работа, уровень масла минимум, а режим при этом автоматический - подкачиваем.
     Serial.print("bt3.val=0\xFF\xFF\xFF"); // переводим тумблер "подкачка вкл"
@@ -595,28 +610,28 @@ void loop(void) {
   }
 
   //поддержка температуры масла
-  if (y == 1 && x == 1 && temp_sensor >= oil_temp_hi) {  // если в автоматическом режиме температура выше максимальной
+    if (y == 1 && x == 1 && temp_sensor >= oil_temp_hi && oh != 0) {  // если в автоматическом режиме температура выше максимальной
     Serial.print("page1.bt1.val=1\xFF\xFF\xFF"); // переводим тумблер "нагрев выкл"
     Serial.print("page1.p4.pic=4\xFF\xFF\xFF"); // лампочку гасим
     digitalWrite(OILHEATPIN, LOW); // выключаем тэн
     oh = 0;
   }
-  if (bl1 != 0 && y == 1 && x == 1 && temp_sensor < oil_temp_low){  // // если в автоматическом режиме температура ниже минимальной и бак не пустой
+  if (bl1 != 0 && y == 1 && x == 1 && temp_sensor < oil_temp_low) { // // если в автоматическом режиме температура ниже минимальной и бак не пустой
     Serial.print("page1.bt1.val=0\xFF\xFF\xFF"); // переводим тумблер "нагрев вкл"
     Serial.print("page1.p4.pic=5\xFF\xFF\xFF"); // лампочку зажигаем
     digitalWrite(OILHEATPIN, HIGH); // включаем тэн
     oh = 1;
   }
- 
-  // проверка состояния горелки
-   if (x1 == 2){  //проверка состояния горелки, если состояние - запуск
-      zapusk();
-      }
-    if (x1 == 3){ //проверка состояния горелки, если состояние - останов
-      ostanov();
-      }
-      
 
-  
+  // проверка состояния горелки
+  if (x1 == 2) { //проверка состояния горелки, если состояние - запуск
+    zapusk();
+  }
+  if (x1 == 3) { //проверка состояния горелки, если состояние - останов
+    ostanov();
+  }
+
+
+
 
 }
