@@ -29,7 +29,7 @@ const char* password = "ferrari220";
 #define OILPUMPPIN 23 //выход включения насоса масла
 #define SPARKLEPIN 21 // выход подключения искры
 
-#define MQTT_HOST IPAddress(192, 168, 88, 248) //адрес сервера MQTT
+#define MQTT_HOST IPAddress(212, 92, 170, 246) //адрес сервера MQTT
 #define MQTT_PORT 1883 // порт сервера MQTT
 
 // создаем объекты для управления MQTT-клиентом:
@@ -122,26 +122,26 @@ void WiFiEvent(WiFiEvent_t event) {
 
 // в этом фрагменте добавляем топики, 
 // на которые будет подписываться ESP32:
-/*void onMqttConnect(bool sessionPresent) {
-  Serial.println("Connected to MQTT.");  //  "Подключились по MQTT."
-  Serial.print("Session present: ");  //  "Текущая сессия: "
-  Serial.println(sessionPresent);
+void onMqttConnect(bool sessionPresent) {
+  //Serial.println("Connected to MQTT.");  //  "Подключились по MQTT."
+  //Serial.print("Session present: ");  //  "Текущая сессия: "
+  //Serial.println(sessionPresent);
   // подписываем ESP32 на топик «esp32/led»:
-  uint16_t packetIdSub = mqttClient.subscribe("esp32/led", 0);
-  Serial.print("Subscribing at QoS 0, packetId: ");
+  uint16_t packetIdSub = mqttClient.subscribe("phone/ALL", 0);
+  //Serial.print("Subscribing at QoS 0, packetId: ");
          //  "Подписываемся при QoS 0, ID пакета: "
-  Serial.println(packetIdSub);
-} */
+  //Serial.println(packetIdSub);
+} 
 
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
-  Serial.println("Disconnected from MQTT.");
+  //Serial.println("Disconnected from MQTT.");
              //  "Отключились от MQTT."
   if (WiFi.isConnected()) {
     xTimerStart(mqttReconnectTimer, 0);
   }
 }
 
-void onMqttSubscribe(uint16_t packetId, uint8_t qos) {
+/*void onMqttSubscribe(uint16_t packetId, uint8_t qos) {
   Serial.println("Subscribe acknowledged.");
              //  "Подписка подтверждена."
   Serial.print("  packetId: ");  //  "  ID пакета: "
@@ -162,30 +162,31 @@ void onMqttPublish(uint16_t packetId) {
             //  "Публикация подтверждена."
   Serial.print("  packetId: ");
   Serial.println(packetId);
-}
+}*/
 
 // этой функцией управляется то, что происходит
-// при получении того или иного сообщения в топике «esp32/led»;
-// (если хотите, можете ее отредактировать):
-/*void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total) {
+// при получении того или иного сообщения в топиках
+
+void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total) {
   String messageTemp;
   for (int i = 0; i < len; i++) {
     //Serial.print((char)payload[i]);
     messageTemp += (char)payload[i];
   }
-  // проверяем, получено ли MQTT-сообщение в топике «esp32/led»:
-  if (strcmp(topic, "esp32/led") == 0) {
-    // если светодиод выключен, включаем его (и наоборот):
-    if (ledState == LOW) {
-      ledState = HIGH;
+  // проверяем, получено ли MQTT-сообщение в топике «phone/ALL»:
+  if (strcmp(topic, "phone/ALL") == 0) {
+    if (messageTemp == "1") {
+      All_on();
+      Serial.print("page1.bt6.val=0\xFF\xFF\xFF");
+      Serial.print("ref page1\xFF\xFF\xFF");
     } else {
-      ledState = LOW;
+      All_off();
+      Serial.print("page1.bt6.val=1\xFF\xFF\xFF");
+      Serial.print("ref page1\xFF\xFF\xFF");
     }
-    // задаем светодиоду значение из переменной «ledState»:
-    digitalWrite(ledPin, ledState);
   }
  
-  Serial.println("Publish received.");
+  /* Serial.println("Publish received.");
              //  "Опубликованные данные получены."
   Serial.print("  message: ");  //  "  сообщение: "
   Serial.println(messageTemp);
@@ -202,9 +203,9 @@ void onMqttPublish(uint16_t packetId) {
   Serial.print("  index: ");  //  "  индекс: "
   Serial.println(index);
   Serial.print("  total: ");  //  "  суммарно: "
-  Serial.println(total);
+  Serial.println(total);  */
 }
- */
+
 void setup(void) {
 
 
@@ -243,21 +244,16 @@ void setup(void) {
   
   mqttReconnectTimer = xTimerCreate("mqttTimer", pdMS_TO_TICKS(2000), pdFALSE, (void*)0, reinterpret_cast<TimerCallbackFunction_t>(connectToMqtt));
   wifiReconnectTimer = xTimerCreate("wifiTimer", pdMS_TO_TICKS(2000), pdFALSE, (void*)0, reinterpret_cast<TimerCallbackFunction_t>(connectToWifi));
-
+  connectToWifi();
   WiFi.onEvent(WiFiEvent);
 
- // mqttClient.onConnect(onMqttConnect);
-  mqttClient.onDisconnect(onMqttDisconnect);
-  mqttClient.onSubscribe(onMqttSubscribe);
+  mqttClient.onConnect(onMqttConnect);
+  //mqttClient.onDisconnect(onMqttDisconnect);
+  //mqttClient.onSubscribe(onMqttSubscribe);
  // mqttClient.onUnsubscribe(onMqttUnsubscribe);
- // mqttClient.onMessage(onMqttMessage);
-  mqttClient.onPublish(onMqttPublish);
+  mqttClient.onMessage(onMqttMessage);
+  //mqttClient.onPublish(onMqttPublish);
   mqttClient.setServer(MQTT_HOST, MQTT_PORT);
-
-  connectToWifi();
-
- 
-
 }
 
 
@@ -507,7 +503,33 @@ void ostanov() {
   x = 0;
 }
 
+void All_on(){
+       x = 1;
+      Serial.print("page1.p7.pic=5\xFF\xFF\xFF");
+      String var = String("page0.t15.txt=\"") + String("on") + String("\"") + String("\xFF\xFF\xFF");
+      Serial.print(var);
+      Serial.print("ref page0\xFF\xFF\xFF");
+      Serial.print("ref page1\xFF\xFF\xFF");
+      var = "1";
+      uint16_t packetIdPub2 = mqttClient.publish("esp32/ALL", 1, true, var.c_str());
+  }
 
+void All_off(){
+        if (x1 == 1) {
+        ostanov();
+      }
+      else {
+        x = 0;
+        Serial.print("page1.p7.pic=4\xFF\xFF\xFF");
+        String var = String("page0.t15.txt=\"") + String("off") + String("\"") + String("\xFF\xFF\xFF");
+        Serial.print(var);
+        Serial.print("ref page0\xFF\xFF\xFF");
+        Serial.print("ref page1\xFF\xFF\xFF");
+        var = "0";
+        uint16_t packetIdPub2 = mqttClient.publish("esp32/ALL", 1, true, var.c_str());
+        obnulenie();
+      }
+  }
 void loop(void) {
 
   //проверяем данные управление от дисплея
@@ -520,24 +542,10 @@ void loop(void) {
 
     //включение системы?
     if (SW_var.equals("ALL_on")) {
-      x = 1;
-      Serial.print("page1.p7.pic=5\xFF\xFF\xFF");
-      String var = String("page0.t15.txt=\"") + String("on") + String("\"") + String("\xFF\xFF\xFF");
-      Serial.print(var);
-      Serial.print("ref page0\xFF\xFF\xFF");
+      All_on();
     }
     if (SW_var.equals("ALL_off")) {
-      if (x1 == 1) {
-        ostanov();
-      }
-      else {
-        x = 0;
-        Serial.print("page1.p7.pic=4\xFF\xFF\xFF");
-        String var = String("page0.t15.txt=\"") + String("off") + String("\"") + String("\xFF\xFF\xFF");
-        Serial.print(var);
-        Serial.print("ref page0\xFF\xFF\xFF");
-        obnulenie();
-      }
+     All_off();
     }
 
     //режим работы автоматический или ручной?
@@ -733,7 +741,7 @@ void loop(void) {
     String var3 = "ref page0";
     Serial.print(var3 + "\xFF\xFF\xFF"); //отправляем сформированную строку в дисплей
     // публикуем MQTT-сообщение в топике «esp32/temperature»
-    uint16_t packetIdPub2 = mqttClient.publish("esp32/temperature", 2, true, var.c_str());
+    uint16_t packetIdPub2 = mqttClient.publish("esp32/temperature", 1, true, var.c_str());
   }
 
   //проверяем датчик пламени, если что-то не так обрабатываем ошибку
