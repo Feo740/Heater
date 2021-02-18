@@ -59,7 +59,9 @@ unsigned int period_DHT22 = 60000; // его же используем для о
 unsigned int period_18b20 = 10000;
 unsigned int period_flame_sensor = 2000;
 unsigned int period_fuel_sensor = 10000;
+unsigned int period_blink1 = 2000;
 unsigned long dht22 = 0; //переменные таймеров
+unsigned long blink1;
 unsigned long T18b20 = 0;
 unsigned long flame_sensor = 0;
 unsigned long fuel_sensor = 0;
@@ -73,11 +75,15 @@ byte st = 0; // флаг состояния выключателя горелк�
 byte fs = 0; // переменная состояния канала датчика пламени
 byte oil = 0; // флаг состояния насоса подкачки масла 0-выключен, 1-включен
 byte bl1 = 0; // флаг состояния датчика уровня масла в бачке 0-пустой, 1- полный 2-средний 3-неисправный
+byte var_blink1 = 0; // флаг для мигания светодиодом
 float oil_temp_hi; //температура масла для выключения тена
 float oil_temp_low;// температура масла для включения тена
 float water_temp_hi; //температура масла для выключения тена
 float water_temp_low;// температура масла для включения тена
-
+String oil_temp_hi_txt; //температура масла для выключения тена используется для MQTT сообщений
+String oil_temp_low_txt;// температура масла для включения тена используется для MQTT сообщений
+String water_temp_hi_txt; //температура масла для выключения тена используется для MQTT сообщений
+String water_temp_low_txt;// температура масла для включения тена используется для MQTT сообщений
 float temp_sensor = 0;
 String var;
 byte olsp = 0;
@@ -532,6 +538,20 @@ void All_off(){
   }
 void loop(void) {
 
+if ((millis() - blink1) >= period_blink1) {
+  blink1 = millis();
+  if (var_blink1 == 0){
+    var_blink1 = 1;
+    String var = String(var_blink1);
+    mqttClient.publish("esp32/blink1", 1, true, var.c_str());
+    }
+  if (var_blink1 == 1){
+    var_blink1 = 0;
+    var = String(var_blink1);
+    mqttClient.publish("esp32/blink1", 1, true, var.c_str());
+    }
+}
+  
   //проверяем данные управление от дисплея
   if ( Serial.available() > 0 ) {
     SW_var = Serial.readStringUntil(0xFF);
@@ -551,6 +571,8 @@ void loop(void) {
     //режим работы автоматический или ручной?
     if (SW_var.equals("AUTO_on") && x == 1 && x1 == 0) { //режим системы вкл, тумблер авто-вкл и горелка не горит
       y = 1; // переводим флаг "автоматический режим"
+      var = "1";
+      uint16_t packetIdPub2 = mqttClient.publish("esp32/AUTO_on", 1, true, var.c_str());
       Serial.print("page1.p2.pic=5\xFF\xFF\xFF"); // зеленая лампочка
       String var = String("page0.t14.txt=\"") + String("auto") + String("\"") + String("\xFF\xFF\xFF"); // пишем в дисплей строку режима
       Serial.print(var); //индикация на дисплее "автоматический"
@@ -561,7 +583,8 @@ void loop(void) {
       Serial.print("page1.bt5.val=1\xFF\xFF\xFF");
     }
     if (SW_var.equals("AUTO_off")) {
-      y = 0;
+      var = "0";
+      uint16_t packetIdPub2 = mqttClient.publish("esp32/AUTO_on", 1, true, var.c_str());
       Serial.print("page1.p2.pic=4\xFF\xFF\xFF");
       String var = String("page0.t14.txt=\"") + String("manual") + String("\"") + String("\xFF\xFF\xFF");
       Serial.print(var);
@@ -572,6 +595,8 @@ void loop(void) {
     // канал подачи воздуха?
     if (SW_var.equals("A_on") && x == 1 && y != 1) {
       a = 1;
+      var = "1";
+      uint16_t packetIdPub2 = mqttClient.publish("esp32/A_on", 1, true, var.c_str());
       digitalWrite(AIRPIN, HIGH);
       Serial.print("p3.pic=5\xFF\xFF\xFF");
     }
@@ -580,6 +605,8 @@ void loop(void) {
     }
     if (SW_var.equals("A_off") && y != 1) {
       a = 0;
+      var = "0";
+      uint16_t packetIdPub2 = mqttClient.publish("esp32/A_on", 1, true, var.c_str());
       digitalWrite(AIRPIN, LOW);
       Serial.print("p3.pic=4\xFF\xFF\xFF");
     }
@@ -587,6 +614,8 @@ void loop(void) {
     // канал нагревателя?
     if (SW_var.equals("OilHeat_on") && x == 1 && (temp_sensor < oil_temp_hi) && y != 1) {
       oh = 1;
+      var = "1";
+      uint16_t packetIdPub2 = mqttClient.publish("esp32/oh", 1, true, var.c_str());
       digitalWrite(OILHEATPIN, HIGH);
       Serial.print("p4.pic=5\xFF\xFF\xFF");
       Serial.print("page1.bt1.val=0\xFF\xFF\xFF");
@@ -596,11 +625,15 @@ void loop(void) {
     }
     if (SW_var.equals("OilHeat_off") && y != 1) {
       oh = 0;
+      var = "0";
+      uint16_t packetIdPub2 = mqttClient.publish("esp32/oh", 1, true, var.c_str());
       digitalWrite(OILHEATPIN, LOW);
       Serial.print("p4.pic=4\xFF\xFF\xFF");
     }
     if (temp_sensor >= oil_temp_hi && oh != 0) {
       oh = 0;
+      var = "0";
+      uint16_t packetIdPub2 = mqttClient.publish("esp32/oh", 1, true, var.c_str());
       digitalWrite(OILHEATPIN, LOW);
       Serial.print("p4.pic=4\xFF\xFF\xFF");
       Serial.print("page1.bt1.val=1\xFF\xFF\xFF");
@@ -609,6 +642,8 @@ void loop(void) {
     // канал вторичного поддува?
     if (SW_var.equals("AF_on") && x == 1 && y != 1) {
       af = 1;
+      var = "1";
+      uint16_t packetIdPub2 = mqttClient.publish("esp32/AF", 1, true, var.c_str());
       digitalWrite(AIRFLOWPIN, HIGH);
       Serial.print("p5.pic=5\xFF\xFF\xFF");
     }
@@ -617,6 +652,8 @@ void loop(void) {
     }
     if (SW_var.equals("AF_off")) {
       af = 0;
+      var = "0";
+      uint16_t packetIdPub2 = mqttClient.publish("esp32/AF", 1, true, var.c_str());
       digitalWrite(AIRFLOWPIN, LOW);
       Serial.print("p5.pic=4\xFF\xFF\xFF");
     }
@@ -624,6 +661,8 @@ void loop(void) {
     //канал накачки масла?
     if (SW_var.equals("OILPUMP_on") && x == 1 && (bl1 == 0 || bl1 == 2)) {
       oil = 1;
+      var = "1";
+      uint16_t packetIdPub2 = mqttClient.publish("esp32/oil", 1, true, var.c_str());
       digitalWrite(OILPUMPPIN, HIGH);
       Serial.print("p1.pic=5\xFF\xFF\xFF");
     }
@@ -632,6 +671,8 @@ void loop(void) {
     }
     if (SW_var.equals("OILPUMP_off")) {
       oil = 0;
+      var = "0";
+      uint16_t packetIdPub2 = mqttClient.publish("esp32/oil", 1, true, var.c_str());
       digitalWrite(OILPUMPPIN, LOW);
       Serial.print("p1.pic=4\xFF\xFF\xFF");
     }
@@ -655,11 +696,13 @@ void loop(void) {
       String var = String("page2.low.txt=\"") + SW_var_temp_num + String("\"") + String("\xFF\xFF\xFF");
       Serial.print(var);
       Serial.print("ref page2\xFF\xFF\xFF");
-      // записываем новое значение во флеш
-         
+      // записываем новое значение во флеш 
       EEPROM.write(0, temp_num);
       EEPROM.commit();
       oil_temp_low = SW_var_temp_num.toInt();
+      oil_temp_low_txt = SW_var_temp_num;
+      //Отправляем новое значение в мобильный клиент
+      uint16_t packetIdPub2 = mqttClient.publish("esp32/LOT", 1, true, SW_var_temp_num.c_str());
     }
 
     if (SW_var_temp.equals("HOT")) { // Если изменили верхнюю границу диапазона температуры масла
@@ -672,6 +715,9 @@ void loop(void) {
       EEPROM.write(1, temp_num);
       EEPROM.commit();
       oil_temp_hi = SW_var_temp_num.toInt();
+      oil_temp_hi_txt = SW_var_temp_num;
+      //Отправляем новое значение в мобильный клиент
+      uint16_t packetIdPub2 = mqttClient.publish("esp32/HOT", 1, true, SW_var_temp_num.c_str());
     }
 
     if (SW_var_temp.equals("WTL")) { // Если изменили нижнюю границу диапазона температуры теплоносителя
@@ -684,6 +730,9 @@ void loop(void) {
       EEPROM.write(3, temp_num);
       EEPROM.commit();
       water_temp_low = SW_var_temp_num.toInt();
+      water_temp_low_txt = SW_var_temp_num;
+      //Отправляем новое значение в мобильный клиент
+      uint16_t packetIdPub2 = mqttClient.publish("esp32/WTL", 1, true, SW_var_temp_num.c_str());
     }
 
     if (SW_var_temp.equals("WTH")) { // Если изменили верхнюю границу диапазона температуры теплоносителя
@@ -696,12 +745,16 @@ void loop(void) {
       EEPROM.write(2, temp_num);
       EEPROM.commit();
       water_temp_hi = SW_var_temp_num.toInt();;
+      water_temp_hi_txt = SW_var_temp_num;
+      //Отправляем новое значение в мобильный клиент
+      uint16_t packetIdPub2 = mqttClient.publish("esp32/WTH", 1, true, SW_var_temp_num.c_str());
     }
 
   }
 
   // читаем DHT22
   if ((millis() - dht22) >= period_DHT22) {
+    obnovlenie (); //таймер подходит раз в минуту - отправим ВСЕ данные состояния горелки на смартфон
     dht22 = millis();
     float h = dht.readHumidity(); // считывание данных о температуре и влажности
     delay(50);
@@ -720,14 +773,19 @@ void loop(void) {
       Serial.print(var4 + "\xFF\xFF\xFF");
       Serial.print("ref page0\xFF\xFF\xFF");
     }
+// отправляем данные MQTT
+String var = String(h);
+uint16_t packetIdPub2 = mqttClient.publish("esp32/DHT_HUM", 1, true, var.c_str());
+var = String(t);
+packetIdPub2 = mqttClient.publish("esp32/DHT_Temp", 1, true, var.c_str());
 
-    //заодно обновим IP
-
-    IPAddress ip = WiFi.localIP();
-    Serial.print("page0.ip.txt=\""); 
+//заодно обновим IP
+  IPAddress ip = WiFi.localIP();
+  Serial.print("page0.ip.txt=\""); 
   Serial.print(ip);
   Serial.print(String("\"") + String("\xFF\xFF\xFF"));
   Serial.print("ref page0\xFF\xFF\xFF");
+  
   }
 
   // Читаем датчик 18b20
