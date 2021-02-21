@@ -70,6 +70,8 @@ void obnovlenie (){
       mqttClient.publish("esp32/WTL", 1, true, water_temp_low_txt.c_str());
 //нижняя граница температуры тосола "WTH"
       mqttClient.publish("esp32/WTH", 1, true, water_temp_hi_txt.c_str());
+//время долива масла
+      mqttClient.publish("esp32/FTL", 1, true, fuel_tank_txt.c_str());
 
 //Нижний уровень топлива "oil_level"
       if (bl1 == 0){
