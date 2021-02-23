@@ -78,7 +78,7 @@ byte oil = 0; // флаг состояния насоса подкачки ма�
 byte bl1 = 0; // флаг состояния датчика уровня масла в бачке 0-пустой, 1- полный 2-средний 3-неисправный
 byte var_blink1 = 0; // флаг для мигания светодиодом
 byte error_flag = 0; // переменная кода ошибки 0-нет, 1-ошибка наполнения топливом
-byte fuel_tank = 0; // время заправки бака масла для епром
+float fuel_tank = 0; // время заправки бака масла для епром
 float oil_temp_hi; //температура масла для выключения тена
 float oil_temp_low;// температура масла для включения тена
 float water_temp_hi; //температура масла для выключения тена
@@ -90,8 +90,8 @@ String water_temp_hi_txt; //температура масла для выклю�
 String water_temp_low_txt;// температура масла для включения тена используется для MQTT сообщений
 float temp_sensor = 0;
 String var;
-byte olsp = 0; \\ флаг датчика топлива
-byte ohsp = 0; \\ флаг датчика топлива
+byte olsp = 0; // флаг датчика топлива
+byte ohsp = 0; // флаг датчика топлива
 
 //Функция подключения к WiFi
 void connectToWifi() {
@@ -151,7 +151,7 @@ void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
   }
 }
 
-/*void onMqttSubscribe(uint16_t packetId, uint8_t qos) {
+void onMqttSubscribe(uint16_t packetId, uint8_t qos) {
   Serial.println("Subscribe acknowledged.");
              //  "Подписка подтверждена."
   Serial.print("  packetId: ");  //  "  ID пакета: "
@@ -167,7 +167,7 @@ void onMqttUnsubscribe(uint16_t packetId) {
   Serial.println(packetId);
 }
 
-void onMqttPublish(uint16_t packetId) {
+/*void onMqttPublish(uint16_t packetId) {
   Serial.println("Publish acknowledged.");
             //  "Публикация подтверждена."
   Serial.print("  packetId: ");
@@ -259,9 +259,9 @@ void setup(void) {
   WiFi.onEvent(WiFiEvent);
 
   mqttClient.onConnect(onMqttConnect);
-  //mqttClient.onDisconnect(onMqttDisconnect);
-  //mqttClient.onSubscribe(onMqttSubscribe);
- // mqttClient.onUnsubscribe(onMqttUnsubscribe);
+  mqttClient.onDisconnect(onMqttDisconnect);
+  mqttClient.onSubscribe(onMqttSubscribe);
+  mqttClient.onUnsubscribe(onMqttUnsubscribe);
   mqttClient.onMessage(onMqttMessage);
   //mqttClient.onPublish(onMqttPublish);
   mqttClient.setServer(MQTT_HOST, MQTT_PORT);
@@ -305,6 +305,9 @@ void obnulenie() {
   temp1 = String(water_temp_hi, 2);
   var = String("page2.whi.txt=\"") + temp1 + String("\"") + String("\xFF\xFF\xFF");
   Serial.print(var);
+  temp1 = String(fuel_tank, 2);
+  var = String("page2.ftl.txt=\"") + temp1 + String("\"") + String("\xFF\xFF\xFF");
+  Serial.print(var);
   Serial.print("ref page2\xFF\xFF\xFF");
   
   
@@ -312,8 +315,14 @@ void obnulenie() {
   Serial.print(ip);
   Serial.print(String("\"") + String("\xFF\xFF\xFF"));
   Serial.print("ref page0\xFF\xFF\xFF");
-  
-
+  x = 0;
+  y = 0;
+  x1 = 0;
+  oil = 0;
+  oh = 0;
+  af = 0;
+  a = 0;
+  indikacia("_________", 16);
   // проверяем уровень топлива
   fuellevel();
 }
@@ -327,11 +336,12 @@ void fuellevel() {
     indikacia("------", 23);
     x = 2; // состояние системы в "авария"
     bl1 = 3; // состояние датчика уровня масла "неисправен"
+    if (oil ==1){
     Serial.print("bt3.val=1\xFF\xFF\xFF"); // переводим тумблер "подкачка выкл"
     Serial.print("page1.p1.pic=4\xFF\xFF\xFF"); // лампочку гасим
     digitalWrite(OILPUMPPIN, LOW); // выключили насос подкачки
     oil = 0;  // выключаем флаг насоса подкачки масла
-    obnulenie();
+    }
   }
   if (olsp == 0 && ohsp == 0) { // оба показывают дно
     indikacia("low", 23);
@@ -551,7 +561,7 @@ if ((millis() - blink1) >= period_blink1) {
     String var = String(var_blink1);
     mqttClient.publish("esp32/blink1", 1, true, var.c_str());
     }
-  if (var_blink1 == 1){
+  else {
     var_blink1 = 0;
     var = String(var_blink1);
     mqttClient.publish("esp32/blink1", 1, true, var.c_str());
@@ -567,7 +577,7 @@ if ((millis() - blink1) >= period_blink1) {
     byte temp_num = SW_var.substring(4).toInt();
 
     //включение системы?
-    if (SW_var.equals("ALL_on")) {
+    if (SW_var.equals("ALL_on") && x != 2) {
       All_on();
     }
     if (SW_var.equals("ALL_off")) {
@@ -589,6 +599,7 @@ if ((millis() - blink1) >= period_blink1) {
       Serial.print("page1.bt5.val=1\xFF\xFF\xFF");
     }
     if (SW_var.equals("AUTO_off")) {
+      y = 0;
       var = "0";
       uint16_t packetIdPub2 = mqttClient.publish("esp32/AUTO_on", 1, true, var.c_str());
       Serial.print("page1.p2.pic=4\xFF\xFF\xFF");
@@ -846,10 +857,10 @@ packetIdPub2 = mqttClient.publish("esp32/DHT_Temp", 1, true, var.c_str());
     Serial.print("bt3.val=1\xFF\xFF\xFF"); // переводим тумблер "подкачка выкл"
     Serial.print("page1.p1.pic=4\xFF\xFF\xFF"); // лампочку гасим
     digitalWrite(OILPUMPPIN, LOW); // Выключили насос подкачки
-    error_flag = 1;
+    x = 2;
     }
   //проверка уровня бачка на дозаправку
-  if (bl1 == 0 && y == 1 && x == 1) { // если режим системы - работа, уровень масла минимум, а режим при этом автоматический - подкачиваем.
+  if (bl1 == 0 && y == 1 && x == 1 && oil != 1) { // если режим системы - работа, уровень масла минимум, а режим при этом автоматический - подкачиваем.
     Serial.print("bt3.val=0\xFF\xFF\xFF"); // переводим тумблер "подкачка вкл"
     Serial.print("page1.p1.pic=5\xFF\xFF\xFF"); // лампочку зажигаем
     digitalWrite(OILPUMPPIN, HIGH); // Включили насос подкачки
@@ -878,8 +889,5 @@ packetIdPub2 = mqttClient.publish("esp32/DHT_Temp", 1, true, var.c_str());
   if (x1 == 3) { //проверка состояния горелки, если состояние - останов
     ostanov();
   }
-
-
-
 
 }
