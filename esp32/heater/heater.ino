@@ -13,7 +13,7 @@ extern "C" {
 //настройки подключение к сети Wifi
 const char* ssid = "MikroTik-1EA2D2";
 const char* password = "ferrari220";
-
+//Свободные пины: D2, D4, D5, D18, D19, D22, D25, D26
 #define EEPROM_SIZE 5 //количество байтов, к которым хотим получить доступ в EEPROM
 #define DHTPIN 14     // контакт, к которому подключается DHT 
 #define AIRPIN 27     //контакт датчика подачи воздуха
