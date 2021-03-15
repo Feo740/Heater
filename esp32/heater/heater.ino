@@ -62,12 +62,25 @@ unsigned int period_flame_sensor = 2000;
 unsigned int period_fuel_sensor = 10000;
 unsigned int period_blink1 = 2000; // задаем период мигания светодиода пинга
 unsigned int period_fuel_tank = 0; // задаем период заполнения бака топлива
-unsigned long dht22 = 0; //переменные таймеров
+unsigned int period_air_before = 5000; // задаем период длительности продувки печи при старте
+unsigned int period_air_after = 5000; // задаем период длительности продувки печи при останове
+unsigned int period_air_ing = 5000; // задаем период от подачи воздуха до подачи искры
+unsigned int period_sparkle_ing = 2000; // задаем период подачи искры
+unsigned int period_between_sparkle_ing = 2000; // период между подачами искры
+
+//переменные сенсоров
+unsigned long dht22 = 0;
 unsigned long blink1;
 unsigned long T18b20 = 0;
 unsigned long flame_sensor = 0;
 unsigned long fuel_sensor = 0;
 unsigned long fuel_tank_var = 0;
+unsigned long air_before = 0;
+unsigned long air_after = 0;
+unsigned long air_ing = 0;
+unsigned long sparkle_ing = 0;
+unsigned long between_sparkle_ing = 0;
+
 byte x = 0; // Флаг состояния системы 0-стоп, 1-работа, 2 - авария
 byte x1 = 0; // флаг состояния горелки 0 - не горит, 1 - горит,  2 - запуск, 3 - останов
 byte y = 0; // Флаг состояния автоматического режима 0-ручной, 1-автоматический
@@ -78,6 +91,8 @@ byte st = 0; // флаг состояния выключателя горелк�
 byte fs = 0; // переменная состояния канала датчика пламени
 byte oil = 0; // флаг состояния насоса подкачки масла 0-выключен, 1-включен
 byte bl1 = 0; // флаг состояния датчика уровня масла в бачке 0-пустой, 1- полный 2-средний 3-неисправный
+byte sp = 0; // флаг состояния подачи искры
+byte sparkle_item = 0; // счетчик еоличества попыток запуска горелки
 byte var_blink1 = 0; // флаг для мигания светодиодом
 byte error_flag = 0; // переменная кода ошибки 0-нет, 1-ошибка наполнения топливом
 float fuel_tank = 0; // время заправки бака масла для епром
@@ -426,7 +441,7 @@ void zapusk() {
     }
   }
   //3й шаг включаем поддув
-  if (bl1 == 1 && temp_sensor >= oil_temp_low && x != 2) { // масла достаточно, температура масла выше мин
+  if (bl1 == 1 && temp_sensor >= oil_temp_low && x != 2) { // масла достаточно, температура масла выше мин, продувка выкл
 
     if (oh == 1 && temp_sensor >= oil_temp_hi) { //если обогреватель включен при температуре выше максимальной - выключаем тен
       Serial.print("page1.bt1.val=1\xFF\xFF\xFF"); // переводим тумблер "нагрев выкл"
@@ -435,54 +450,72 @@ void zapusk() {
       oh = 0;
     }
 
-    af = 1;
+    if (af != 1)
+    {
+    air_before = millis();
     digitalWrite(AIRFLOWPIN, HIGH);
     Serial.print("p5.pic=5\xFF\xFF\xFF");
     Serial.print("page1.bt2.val=0\xFF\xFF\xFF");
     indikacia("airflow", 15);
-    delay(35000);
+    af = 1;
+    }
 
-    a = 1;
-    digitalWrite(AIRPIN, HIGH);
-    Serial.print("page1.p3.pic=5\xFF\xFF\xFF");
-    Serial.print("page1.bt0.val=0\xFF\xFF\xFF");
-    indikacia("airING", 15);
-    delay(35000);
+    if ((millis() - air_before) >= period_air_before)
+    {
+        if (a != 1)
+        {
+        air_ing = millis();
+        digitalWrite(AIRPIN, HIGH);
+        Serial.print("page1.p3.pic=5\xFF\xFF\xFF");
+        Serial.print("page1.bt0.val=0\xFF\xFF\xFF");
+        indikacia("airING", 15);
+        a = 1;
+        }
 
-    Serial.print("p6.pic=5\xFF\xFF\xFF");
-    Serial.print("page1.bt4.val=0\xFF\xFF\xFF");
-    digitalWrite(SPARKLEPIN, HIGH);
-    indikacia("SPARKLE", 15);
-    delay (9500);
+        if ((millis() - air_ing) >= period_air_ing)
+        {
+          if (sp != 1 && fs == 1 && sparkle_item <= 3)
+          {
+            if (sparkle_item == 0 || ((millis() - between_sparkle_ing) >= period_between_sparkle_ing)){
+            sparkle_ing = millis();
+            digitalWrite(SPARKLEPIN, HIGH);
+            Serial.print("p6.pic=5\xFF\xFF\xFF");
+            Serial.print("page1.bt4.val=0\xFF\xFF\xFF");
+            indikacia("SPARKLE", 15);
+            sp = 1;
+          }
+        }
 
+    if ((millis() - sparkle_ing) >= period_sparkle_ing)
+    {
+      if (sp == 1)
+      {
+    sp = 0;
     digitalWrite(SPARKLEPIN, LOW);
     Serial.print("p6.pic=4\xFF\xFF\xFF");
     Serial.print("page1.bt4.val=1\xFF\xFF\xFF");
     fs = digitalRead(FLAMESENSORPIN);
-    if (fs == 1) {                             // если пламени нет
-      indikacia("double SPARKLE", 15);
-      delay (9500);
-      Serial.print("p6.pic=5\xFF\xFF\xFF");
-      Serial.print("page1.bt4.val=0\xFF\xFF\xFF");
-      digitalWrite(SPARKLEPIN, HIGH);
-      delay (9500);
-      digitalWrite(SPARKLEPIN, LOW);
-      Serial.print("p6.pic=4\xFF\xFF\xFF");
-      Serial.print("page1.bt4.val=1\xFF\xFF\xFF");
-    }
+    between_sparkle_ing = millis();
+    sparkle_item = sparkle_item + 1;
+      }
+
+    // если горелка успешно стартовала
     if (fs == 0) {
       indikacia("fire", 15);
       x1 = 1; // флаг горелки в режим "горение"
+      sparkle_item = 0; //обнуляем количество попыток дать искру
     }
-    else {
+    //если после трех попыток нет пламени
+    if (sparkle_item > 3) {
       indikacia("not fire", 16);
       indikacia("error", 15);
       x1 = 3;
+      sparkle_item = 0;
     }
-
-  }
-
-
+}
+    }
+}
+}
 
 }
 
