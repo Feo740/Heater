@@ -15,7 +15,7 @@ extern "C" {
 const char* ssid = "MikroTik-1EA2D2";
 const char* password = "ferrari220";
 //Свободные пины:  D4, D5, D18, D19, D22, D2, D26
-#define EEPROM_SIZE 5 //количество байтов, к которым хотим получить доступ в EEPROM
+#define EEPROM_SIZE 10 //количество байтов, к которым хотим получить доступ в EEPROM
 #define DHTPIN 14     // контакт, к которому подключается DHT
 #define AIRPIN 27     //контакт датчика подачи воздуха
 #define OILHEATPIN 32 // контакт включения подогревателя масла
@@ -257,7 +257,12 @@ void setup(void) {
   oil_temp_low = EEPROM.read(0); // читаем последнее значение из флеш-памяти
   water_temp_hi = EEPROM.read(2); // читаем последнее значение из флеш-памяти
   water_temp_low = EEPROM.read(3); // читаем последнее значение из флеш-памяти
-  fuel_tank = EEPROM.read (4); // читаем данные с памяти - время дозаправки, если не сработает поплавок
+  fuel_tank = EEPROM.read (4); // читаем данные из памяти - время дозаправки, если не сработает поплавок
+  period_air_before = 1000 * int(EEPROM.read (5)); // Читаем данные из памяти - время продувки печи при старте
+  period_air_after = 1000 * int(EEPROM.read (6)); // Читаем данные из памяти - время продувки печи при останове
+  period_air_ing = 1000 * int(EEPROM.read (7)); // Читаем данные из памяти - время от впрыска воздуха до искры
+  period_sparkle_ing = 1000 * int(EEPROM.read (8)); // Читаем данные из памяти - время поддержки искры
+  period_between_sparkle_ing = 1000 * int(EEPROM.read (9)); // Читаем данные из памяти - время между подачей искры
   period_fuel_tank = fuel_tank*1000;
   dht22 = millis();
   T18b20 = millis();
@@ -325,8 +330,8 @@ void obnulenie() {
   indikacia("manual", 14);
   indikacia("off", 15);
   indikacia("------", 16);
-  // выводим на дисплей значения настроек
 
+  // выводим на дисплей значения настроек
   String temp1 = String(oil_temp_low, 2);
   String var = String("page2.low.txt=\"") + temp1 + String("\"") + String("\xFF\xFF\xFF");
   Serial.print(var);
