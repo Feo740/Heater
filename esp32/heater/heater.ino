@@ -1,3 +1,4 @@
+#include <driver/adc.h>
 #include <ETH.h>
 #include <WiFi.h>
 #include "DHT.h"
@@ -13,13 +14,13 @@ extern "C" {
 //настройки подключение к сети Wifi
 const char* ssid = "MikroTik-1EA2D2";
 const char* password = "ferrari220";
-//Свободные пины: D2, D4, D5, D18, D19, D22, D25, D26
+//Свободные пины:  D4, D5, D18, D19, D22, D2, D26
 #define EEPROM_SIZE 5 //количество байтов, к которым хотим получить доступ в EEPROM
-#define DHTPIN 14     // контакт, к которому подключается DHT 
+#define DHTPIN 14     // контакт, к которому подключается DHT
 #define AIRPIN 27     //контакт датчика подачи воздуха
 #define OILHEATPIN 32 // контакт включения подогревателя масла
 #define STARTPIN 12  // контакт пуска горелки
-#define AIRFLOWPIN 33 // контакт поддува вторичного воздуха
+#define AIRFLOWPIN 25 // контакт поддува вторичного воздуха
 #define DHTTYPE DHT22   // DHT 11
 #define ONE_WIRE_BUS 15 //контакт датчика 18б20
 #define FLAMESENSORPIN 35 //вход датчика пламени
@@ -27,6 +28,7 @@ const char* password = "ferrari220";
 #define OILHIGHSENSOREPIN 13 // вход высокого уровня датчика масла в бачке
 #define OILPUMPPIN 23 //выход включения насоса масла
 #define SPARKLEPIN 21 // выход подключения искры
+#define CURRENT_SENSOR 33 // Вход датчика тока
 
 #define MQTT_HOST IPAddress(212, 92, 170, 246) //адрес сервера MQTT
 #define MQTT_PORT 1883 // порт сервера MQTT
@@ -83,6 +85,12 @@ float oil_temp_hi; //температура масла для выключени
 float oil_temp_low;// температура масла для включения тена
 float water_temp_hi; //температура масла для выключения тена
 float water_temp_low;// температура масла для включения тена
+
+int mVperAmp = 100; // use 100 for 20A Module and 66 for 30A Module
+double Voltage = 0;
+double VRMS = 0;
+double AmpsRMS = 0;
+
 String fuel_tank_txt; // предельное время наполения бака масла используется для MQTT сообщений
 String oil_temp_hi_txt; //температура масла для выключения тена используется для MQTT сообщений
 String oil_temp_low_txt;// температура масла для включения тена используется для MQTT сообщений
@@ -101,7 +109,7 @@ void connectToWifi() {
   IPAddress ip = WiFi.localIP();
 }
 
-//Функция подключения к MQTT 
+//Функция подключения к MQTT
 void connectToMqtt() {
   Serial.println("Connecting to MQTT...");
              //  "Подключаемся к MQTT... "
@@ -130,7 +138,7 @@ void WiFiEvent(WiFiEvent_t event) {
   }
 }
 
-// в этом фрагменте добавляем топики, 
+// в этом фрагменте добавляем топики,
 // на которые будет подписываться ESP32:
 void onMqttConnect(bool sessionPresent) {
   //Serial.println("Connected to MQTT.");  //  "Подключились по MQTT."
@@ -141,7 +149,7 @@ void onMqttConnect(bool sessionPresent) {
   //Serial.print("Subscribing at QoS 0, packetId: ");
          //  "Подписываемся при QoS 0, ID пакета: "
   //Serial.println(packetIdSub);
-} 
+}
 
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
   //Serial.println("Disconnected from MQTT.");
@@ -195,29 +203,39 @@ void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties 
       Serial.print("ref page1\xFF\xFF\xFF");
     }
   }
- 
-  /* Serial.println("Publish received.");
-             //  "Опубликованные данные получены."
-  Serial.print("  message: ");  //  "  сообщение: "
-  Serial.println(messageTemp);
-  Serial.print("  topic: ");  //  "  топик: "
-  Serial.println(topic);
-  Serial.print("  qos: ");  //  "  уровень обслуживания: "
-  Serial.println(properties.qos);
-  Serial.print("  dup: ");  //  "  дублирование сообщения: "
-  Serial.println(properties.dup);
-  Serial.print("  retain: ");  //  "сохраненные сообщения: "
-  Serial.println(properties.retain);
-  Serial.print("  len: ");  //  "  размер: "
-  Serial.println(len);
-  Serial.print("  index: ");  //  "  индекс: "
-  Serial.println(index);
-  Serial.print("  total: ");  //  "  суммарно: "
-  Serial.println(total);  */
+}
+
+float getVPP(){
+  float result;
+  int readValue;             //value read from the sensor
+  int maxValue = 0;          // store max value here
+  int minValue = 4096;          // store min value here
+
+  uint32_t start_time = millis();
+   while((millis()-start_time) < 40) //sample
+   {
+    readValue = adc1_get_raw(ADC1_CHANNEL_5);
+       // see if you have a new maxValue
+       if (readValue > maxValue)
+      {
+           /*record the maximum sensor value*/
+           maxValue = readValue;
+       }
+       if (readValue < minValue)
+       {
+           /*record the minimum sensor value*/
+           minValue = readValue;
+       }
+   }
+   result = ((maxValue - minValue) * 2.5)/4096.0;
+   return result;
+
 }
 
 void setup(void) {
-
+   // Конфигурируем АЦП модуль 1
+   adc1_config_width(ADC_WIDTH_BIT_12);
+   adc1_config_channel_atten(ADC1_CHANNEL_5,ADC_ATTEN_DB_11); // Используем канал на 33 пине, задаем максимальное ослабление сигнала 11 Db
   // чтение настроек с флэш-памяти
   EEPROM.begin(EEPROM_SIZE); //инициализация EEPROM с определенным размером
   oil_temp_hi = EEPROM.read(1); // читаем последнее значение из флеш-памяти
@@ -241,6 +259,7 @@ void setup(void) {
   pinMode(OILLOWSENSOREPIN, INPUT);
   pinMode(OILHIGHSENSOREPIN, INPUT);
   pinMode(SPARKLEPIN, OUTPUT);
+  pinMode(CURRENT_SENSOR, INPUT);
   digitalWrite(SPARKLEPIN, LOW);
   digitalWrite(OILPUMPPIN, LOW);
   digitalWrite(AIRPIN, LOW);
@@ -252,7 +271,7 @@ void setup(void) {
   obnulenie();
 
   // настраиваем сеть
-  
+
   mqttReconnectTimer = xTimerCreate("mqttTimer", pdMS_TO_TICKS(2000), pdFALSE, (void*)0, reinterpret_cast<TimerCallbackFunction_t>(connectToMqtt));
   wifiReconnectTimer = xTimerCreate("wifiTimer", pdMS_TO_TICKS(2000), pdFALSE, (void*)0, reinterpret_cast<TimerCallbackFunction_t>(connectToWifi));
   connectToWifi();
@@ -292,7 +311,7 @@ void obnulenie() {
   indikacia("off", 15);
   indikacia("------", 16);
   // выводим на дисплей значения настроек
-  
+
   String temp1 = String(oil_temp_low, 2);
   String var = String("page2.low.txt=\"") + temp1 + String("\"") + String("\xFF\xFF\xFF");
   Serial.print(var);
@@ -309,12 +328,12 @@ void obnulenie() {
   var = String("page2.ftl.txt=\"") + temp1 + String("\"") + String("\xFF\xFF\xFF");
   Serial.print(var);
   Serial.print("ref page2\xFF\xFF\xFF");
-  
-  
-  Serial.print("page0.ip.txt=\""); 
+
+
+  Serial.print("page0.ip.txt=\"");
   Serial.print(ip);
   Serial.print(String("\"") + String("\xFF\xFF\xFF"));
-  Serial.print("ref page0\xFF\xFF\xFF");
+  //Serial.print("ref page0\xFF\xFF\xFF");
   x = 0;
   y = 0;
   x1 = 0;
@@ -369,7 +388,7 @@ void indikacia(String k, int k1) {
   String stringVar = String(k1);
   String var = String("page0.t") + stringVar + String(".txt=\"") + k + String("\"") + String("\xFF\xFF\xFF");
   Serial.print(var); //индикация на дисплее
-  Serial.print("ref page0\xFF\xFF\xFF"); // обновить страницу
+  //Serial.print("ref page0\xFF\xFF\xFF"); // обновить страницу
 
 }
 
@@ -491,7 +510,7 @@ void ostanov() {
     x1 = 0;     // состояние горелки "не горит"
     String var = String("page0.t15.txt=\"") + String("fire off") + String("\"") + String("\xFF\xFF\xFF");
     Serial.print(var); //индикация на дисплее "горение"
-    Serial.print("ref page0\xFF\xFF\xFF"); // обновить страницу
+  //  //Serial.print("ref page0\xFF\xFF\xFF"); // обновить страницу
     x = 0;    // состояние системы "стоп"
     y = 0;    // режим горелки "ручной"
     obnulenie();
@@ -499,7 +518,7 @@ void ostanov() {
   } else {
     String var = String("page0.t15.txt=\"") + String("error fire off") + String("\"") + String("\xFF\xFF\xFF");
     Serial.print(var); //индикация на дисплее "горение"
-    Serial.print("ref page0\xFF\xFF\xFF"); // обновить страницу
+    ////Serial.print("ref page0\xFF\xFF\xFF"); // обновить страницу
     x = 2; // флаг горелки в режим "авария"
   }
 
@@ -530,7 +549,7 @@ void All_on(){
       Serial.print("page1.p7.pic=5\xFF\xFF\xFF");
       String var = String("page0.t15.txt=\"") + String("on") + String("\"") + String("\xFF\xFF\xFF");
       Serial.print(var);
-      Serial.print("ref page0\xFF\xFF\xFF");
+      ////Serial.print("ref page0\xFF\xFF\xFF");
       Serial.print("ref page1\xFF\xFF\xFF");
       var = "1";
       uint16_t packetIdPub2 = mqttClient.publish("esp32/ALL", 1, true, var.c_str());
@@ -545,17 +564,37 @@ void All_off(){
         Serial.print("page1.p7.pic=4\xFF\xFF\xFF");
         String var = String("page0.t15.txt=\"") + String("off") + String("\"") + String("\xFF\xFF\xFF");
         Serial.print(var);
-        Serial.print("ref page0\xFF\xFF\xFF");
+        ////Serial.print("ref page0\xFF\xFF\xFF");
         Serial.print("ref page1\xFF\xFF\xFF");
         var = "0";
         uint16_t packetIdPub2 = mqttClient.publish("esp32/ALL", 1, true, var.c_str());
         obnulenie();
       }
   }
+
+void current(){
+Voltage = getVPP();
+VRMS = (Voltage/2);// *0.707;
+AmpsRMS = (VRMS * 1000)/mVperAmp;
+if (AmpsRMS < 0.5){
+  AmpsRMS = 0;
+}
+String var = String(AmpsRMS, 2);
+  // публикуем MQTT-сообщение в топике «esp32/current»
+    uint16_t packetIdPub2 = mqttClient.publish("esp32/current", 1, true, var.c_str());
+  }
+
+
 void loop(void) {
 
 if ((millis() - blink1) >= period_blink1) {
   blink1 = millis();
+  current();
+  /*int readValue;
+  readValue = analogRead(CURRENT_SENSOR);
+  String var = String(readValue, DEC);
+  uint16_t packetIdPub2 = mqttClient.publish("esp32/result", 1, true, var.c_str());*/
+
   if (var_blink1 == 0){
     var_blink1 = 1;
     String var = String(var_blink1);
@@ -567,7 +606,7 @@ if ((millis() - blink1) >= period_blink1) {
     mqttClient.publish("esp32/blink1", 1, true, var.c_str());
     }
 }
-  
+
   //проверяем данные управление от дисплея
   if ( Serial.available() > 0 ) {
     SW_var = Serial.readStringUntil(0xFF);
@@ -592,7 +631,7 @@ if ((millis() - blink1) >= period_blink1) {
       Serial.print("page1.p2.pic=5\xFF\xFF\xFF"); // зеленая лампочка
       String var = String("page0.t14.txt=\"") + String("auto") + String("\"") + String("\xFF\xFF\xFF"); // пишем в дисплей строку режима
       Serial.print(var); //индикация на дисплее "автоматический"
-      Serial.print("ref page0\xFF\xFF\xFF"); // обновить страницу
+      //Serial.print("ref page0\xFF\xFF\xFF"); // обновить страницу
       x1 = 2;
     }
     if (SW_var.equals("AUTO_on") && x == 0) {
@@ -605,7 +644,7 @@ if ((millis() - blink1) >= period_blink1) {
       Serial.print("page1.p2.pic=4\xFF\xFF\xFF");
       String var = String("page0.t14.txt=\"") + String("manual") + String("\"") + String("\xFF\xFF\xFF");
       Serial.print(var);
-      Serial.print("ref page0\xFF\xFF\xFF"); //отправляем сформированную строку в дисплей
+      //Serial.print("ref page0\xFF\xFF\xFF"); //отправляем сформированную строку в дисплей
       ostanov();
     }
 
@@ -714,7 +753,7 @@ if ((millis() - blink1) >= period_blink1) {
       String var = String("page2.low.txt=\"") + SW_var_temp_num + String("\"") + String("\xFF\xFF\xFF");
       Serial.print(var);
       Serial.print("ref page2\xFF\xFF\xFF");
-      // записываем новое значение во флеш 
+      // записываем новое значение во флеш
       EEPROM.write(0, temp_num);
       EEPROM.commit();
       oil_temp_low = SW_var_temp_num.toInt();
@@ -729,7 +768,7 @@ if ((millis() - blink1) >= period_blink1) {
       Serial.print(var);
       Serial.print("ref page2\xFF\xFF\xFF");
       // записываем новое значение во флеш
-         
+
       EEPROM.write(1, temp_num);
       EEPROM.commit();
       oil_temp_hi = SW_var_temp_num.toInt();
@@ -744,7 +783,7 @@ if ((millis() - blink1) >= period_blink1) {
       Serial.print(var);
       Serial.print("ref page2\xFF\xFF\xFF");
       // записываем новое значение во флеш
-           
+
       EEPROM.write(3, temp_num);
       EEPROM.commit();
       water_temp_low = SW_var_temp_num.toInt();
@@ -805,7 +844,7 @@ if ((millis() - blink1) >= period_blink1) {
       String var4 = "t8.txt=\"" + String(t) + "\"";
       Serial.print(var3 + "\xFF\xFF\xFF");
       Serial.print(var4 + "\xFF\xFF\xFF");
-      Serial.print("ref page0\xFF\xFF\xFF");
+      //Serial.print("ref page0\xFF\xFF\xFF");
     }
 // отправляем данные MQTT
 String var = String(h);
@@ -815,11 +854,11 @@ packetIdPub2 = mqttClient.publish("esp32/DHT_Temp", 1, true, var.c_str());
 
 //заодно обновим IP
   IPAddress ip = WiFi.localIP();
-  Serial.print("page0.ip.txt=\""); 
+  Serial.print("page0.ip.txt=\"");
   Serial.print(ip);
   Serial.print(String("\"") + String("\xFF\xFF\xFF"));
-  Serial.print("ref page0\xFF\xFF\xFF");
-  
+  //Serial.print("ref page0\xFF\xFF\xFF");
+
   }
 
   // Читаем датчик 18b20
@@ -830,8 +869,7 @@ packetIdPub2 = mqttClient.publish("esp32/DHT_Temp", 1, true, var.c_str());
     String var = String(sensors.getTempC(sensor1), 2);
     String var2 = "t0.txt=\"" + var + "C" + "\"";
     Serial.print(var2 + "\xFF\xFF\xFF");
-    String var3 = "ref page0";
-    Serial.print(var3 + "\xFF\xFF\xFF"); //отправляем сформированную строку в дисплей
+  //Serial.print("ref page0\xFF\xFF\xFF");
     // публикуем MQTT-сообщение в топике «esp32/temperature»
     uint16_t packetIdPub2 = mqttClient.publish("esp32/temperature", 1, true, var.c_str());
   }
