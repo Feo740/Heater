@@ -68,7 +68,7 @@ unsigned int period_air_ing = 5000; // задаем период от подач
 unsigned int period_sparkle_ing = 2000; // задаем период подачи искры
 unsigned int period_between_sparkle_ing = 2000; // период между подачами искры
 
-//переменные сенсоров
+//переменные счетчиков
 unsigned long dht22 = 0;
 unsigned long blink1;
 unsigned long T18b20 = 0;
@@ -107,6 +107,11 @@ double VRMS = 0;
 double AmpsRMS = 0;
 
 String fuel_tank_txt; // предельное время наполения бака масла используется для MQTT сообщений
+String period_air_before_txt; // продувка котла перед стартом используется для MQTT сообщений
+String period_air_after_txt; // продувка котла после останова используется для MQTT сообщений
+String period_air_ing_txt; // время длительности первичного впрыска топлива перед стартом используется для MQTT сообщений
+String period_between_sparkle_ing_txt; // период между искрами используется для MQTT сообщений
+String period_sparkle_ing_txt; // период длительности искры используется для MQTT сообщений
 String oil_temp_hi_txt; //температура масла для выключения тена используется для MQTT сообщений
 String oil_temp_low_txt;// температура масла для включения тена используется для MQTT сообщений
 String water_temp_hi_txt; //температура масла для выключения тена используется для MQTT сообщений
@@ -628,10 +633,6 @@ void loop(void) {
 if ((millis() - blink1) >= period_blink1) {
   blink1 = millis();
   current();
-  /*int readValue;
-  readValue = analogRead(CURRENT_SENSOR);
-  String var = String(readValue, DEC);
-  uint16_t packetIdPub2 = mqttClient.publish("esp32/result", 1, true, var.c_str());*/
 
   if (var_blink1 == 0){
     var_blink1 = 1;
@@ -839,7 +840,7 @@ if ((millis() - blink1) >= period_blink1) {
 
       EEPROM.write(2, temp_num);
       EEPROM.commit();
-      water_temp_hi = SW_var_temp_num.toInt();;
+      water_temp_hi = SW_var_temp_num.toInt();
       water_temp_hi_txt = SW_var_temp_num;
       //Отправляем новое значение в мобильный клиент
       uint16_t packetIdPub2 = mqttClient.publish("esp32/WTH", 1, true, SW_var_temp_num.c_str());
@@ -854,10 +855,84 @@ if ((millis() - blink1) >= period_blink1) {
 
       EEPROM.write(4, temp_num);
       EEPROM.commit();
-      fuel_tank = SW_var_temp_num.toInt();;
+      fuel_tank = SW_var_temp_num.toInt();
       fuel_tank_txt = SW_var_temp_num;
       //Отправляем новое значение в мобильный клиент
       uint16_t packetIdPub2 = mqttClient.publish("esp32/FTL", 1, true, SW_var_temp_num.c_str());
+    }
+
+    if (SW_var_temp.equals("AIRB")){ // Если изменили время продувки до старта горелки
+       //обновляем индикацию на дисплее
+      String var = String("page2.airb.txt=\"") + SW_var_temp_num + String("\"") + String("\xFF\xFF\xFF");
+      Serial.print(var);
+      Serial.print("ref page2\xFF\xFF\xFF");
+      // записываем новое значение во флеш
+
+      EEPROM.write(5, temp_num);
+      EEPROM.commit();
+      period_air_before = 1000 * SW_var_temp_num.toInt();
+      period_air_before_txt = SW_var_temp_num;
+      //Отправляем новое значение в мобильный клиент
+      uint16_t packetIdPub2 = mqttClient.publish("esp32/AIRB", 1, true, SW_var_temp_num.c_str());
+    }
+
+    if (SW_var_temp.equals("AIRA")){ // Если изменили время продувки посте останова горелки
+       //обновляем индикацию на дисплее
+      String var = String("page2.aira.txt=\"") + SW_var_temp_num + String("\"") + String("\xFF\xFF\xFF");
+      Serial.print(var);
+      Serial.print("ref page2\xFF\xFF\xFF");
+      // записываем новое значение во флеш
+
+      EEPROM.write(6, temp_num);
+      EEPROM.commit();
+      period_air_after = 1000 * SW_var_temp_num.toInt();
+      period_air_after_txt = SW_var_temp_num;
+      //Отправляем новое значение в мобильный клиент
+      uint16_t packetIdPub2 = mqttClient.publish("esp32/AIRA", 1, true, SW_var_temp_num.c_str());
+    }
+    if (SW_var_temp.equals("AIRING")){ // Если изменили время продувки посте останова горелки
+       //обновляем индикацию на дисплее
+      String var = String("page2.airing.txt=\"") + SW_var_temp_num + String("\"") + String("\xFF\xFF\xFF");
+      Serial.print(var);
+      Serial.print("ref page2\xFF\xFF\xFF");
+      // записываем новое значение во флеш
+
+      EEPROM.write(7, temp_num);
+      EEPROM.commit();
+      period_air_ing = 1000 * SW_var_temp_num.toInt();
+      period_air_ing_txt = SW_var_temp_num;
+      //Отправляем новое значение в мобильный клиент
+      uint16_t packetIdPub2 = mqttClient.publish("esp32/AIRING", 1, true, SW_var_temp_num.c_str());
+    }
+
+    if (SW_var_temp.equals("BSI")){ // Если изменили время между искрами
+       //обновляем индикацию на дисплее
+      String var = String("page2.bsi.txt=\"") + SW_var_temp_num + String("\"") + String("\xFF\xFF\xFF");
+      Serial.print(var);
+      Serial.print("ref page2\xFF\xFF\xFF");
+      // записываем новое значение во флеш
+
+      EEPROM.write(9, temp_num);
+      EEPROM.commit();
+      period_between_sparkle_ing = 1000 * SW_var_temp_num.toInt();
+      period_between_sparkle_ing_txt = SW_var_temp_num;
+      //Отправляем новое значение в мобильный клиент
+      uint16_t packetIdPub2 = mqttClient.publish("esp32/BSI", 1, true, SW_var_temp_num.c_str());
+    }
+
+    if (SW_var_temp.equals("SI")){ // Если изменили время продолжительности искры
+       //обновляем индикацию на дисплее
+      String var = String("page2.si.txt=\"") + SW_var_temp_num + String("\"") + String("\xFF\xFF\xFF");
+      Serial.print(var);
+      Serial.print("ref page2\xFF\xFF\xFF");
+      // записываем новое значение во флеш
+
+      EEPROM.write(8, temp_num);
+      EEPROM.commit();
+      period_sparkle_ing = 1000 * SW_var_temp_num.toInt();
+      period_sparkle_ing_txt = SW_var_temp_num;
+      //Отправляем новое значение в мобильный клиент
+      uint16_t packetIdPub2 = mqttClient.publish("esp32/SI", 1, true, SW_var_temp_num.c_str());
     }
 
 
