@@ -6,6 +6,9 @@
 #include "DallasTemperature.h"
 #include "EEPROM.h"
 #include <AsyncMqttClient.h>
+#include "FS.h"
+#include "SD.h"
+#include "SPI.h"
 extern "C" {
 #include "freertos/FreeRTOS.h"
 #include "freertos/timers.h"
@@ -19,7 +22,7 @@ const char* password = "ferrari220";
 #define DHTPIN 14     // контакт, к которому подключается DHT
 #define AIRPIN 27     //контакт датчика подачи воздуха
 #define OILHEATPIN 32 // контакт включения подогревателя масла
-#define STARTPIN 12  // контакт пуска горелки
+#define STARTPIN 12  // контакт пуска горелки ЗАМЕНИТЬ
 #define AIRFLOWPIN 25 // контакт поддува вторичного воздуха
 #define DHTTYPE DHT22   // DHT 11
 #define ONE_WIRE_BUS 15 //контакт датчика 18б20
@@ -88,7 +91,7 @@ byte a = 0; // Флаг состояния канала первичного в�
 byte oh = 0; // Флаг состояния канала подогрева масла 0-выключен, 1-включен
 byte af = 0; // флаг состояния канала вторичного воздуха 0-выключен, 1-включен
 byte st = 0; // флаг состояния выключателя горелки 0-выключен, 1 - включен
-byte fs = 0; // переменная состояния канала датчика пламени
+byte fs1 = 0; // переменная состояния канала датчика пламени
 byte oil = 0; // флаг состояния насоса подкачки масла 0-выключен, 1-включен
 byte bl1 = 0; // флаг состояния датчика уровня масла в бачке 0-пустой, 1- полный 2-средний 3-неисправный
 byte sp = 0; // флаг состояния подачи искры
@@ -120,6 +123,38 @@ float temp_sensor = 0;
 String var;
 byte olsp = 0; // флаг датчика топлива
 byte ohsp = 0; // флаг датчика топлива
+
+// функция вывода листа папок с флешки
+void listDir(fs::FS &fs, const char * dirname, uint8_t levels){
+    Serial.printf("Listing directory: %s\n", dirname);
+
+    File root = fs.open(dirname);
+    if(!root){
+        Serial.println("Failed to open directory");
+        return;
+    }
+    if(!root.isDirectory()){
+        Serial.println("Not a directory");
+        return;
+    }
+
+    File file = root.openNextFile();
+    while(file){
+        if(file.isDirectory()){
+            Serial.print("  DIR : ");
+            Serial.println(file.name());
+            if(levels){
+                listDir(fs, file.name(), levels -1);
+            }
+        } else {
+            Serial.print("  FILE: ");
+            Serial.print(file.name());
+            Serial.print("  SIZE: ");
+            Serial.println(file.size());
+        }
+        file = root.openNextFile();
+    }
+}
 
 //Функция подключения к WiFi
 void connectToWifi() {
@@ -253,6 +288,37 @@ float getVPP(){
 }
 
 void setup(void) {
+  //Работа с флешкартой
+  if(!SD.begin()){
+          Serial.println("Card Mount Failed");
+          return;
+      }
+      uint8_t cardType = SD.cardType();
+
+      if(cardType == CARD_NONE){
+          Serial.println("No SD card attached");
+          return;
+      }
+
+      Serial.print("SD Card Type: ");
+      if(cardType == CARD_MMC){
+          Serial.println("MMC");
+      } else if(cardType == CARD_SD){
+          Serial.println("SDSC");
+      } else if(cardType == CARD_SDHC){
+          Serial.println("SDHC");
+      } else {
+          Serial.println("UNKNOWN");
+      }
+
+      uint64_t cardSize = SD.cardSize() / (1024 * 1024);
+      Serial.printf("SD Card Size: %lluMB\n", cardSize);
+
+      listDir(SD, "/", 0);
+
+
+
+
    // Конфигурируем АЦП модуль 1
    adc1_config_width(ADC_WIDTH_BIT_12);
    adc1_config_channel_atten(ADC1_CHANNEL_5,ADC_ATTEN_DB_11); // Используем канал на 33 пине, задаем максимальное ослабление сигнала 11 Db
@@ -291,7 +357,7 @@ void setup(void) {
   digitalWrite(AIRFLOWPIN, LOW);
   digitalWrite(STARTPIN, LOW);
   digitalWrite(OILHEATPIN, LOW);
-  fs = digitalRead(FLAMESENSORPIN);
+  fs1 = digitalRead(FLAMESENSORPIN);
   // инициализация дисплея
   obnulenie();
 
@@ -484,7 +550,7 @@ void zapusk() {
 
         if ((millis() - air_ing) >= period_air_ing)
         {
-          if (sp != 1 && fs == 1 && sparkle_item <= 3)
+          if (sp != 1 && fs1 == 1 && sparkle_item <= 3)
           {
             if (sparkle_item == 0 || ((millis() - between_sparkle_ing) >= period_between_sparkle_ing)){
             sparkle_ing = millis();
@@ -504,13 +570,13 @@ void zapusk() {
     digitalWrite(SPARKLEPIN, LOW);
     Serial.print("p6.pic=4\xFF\xFF\xFF");
     Serial.print("page1.bt4.val=1\xFF\xFF\xFF");
-    fs = digitalRead(FLAMESENSORPIN);
+    fs1 = digitalRead(FLAMESENSORPIN);
     between_sparkle_ing = millis();
     sparkle_item = sparkle_item + 1;
       }
 
     // если горелка успешно стартовала
-    if (fs == 0) {
+    if (fs1 == 0) {
       indikacia("fire", 15);
       x1 = 1; // флаг горелки в режим "горение"
       sparkle_item = 0; //обнуляем количество попыток дать искру
@@ -548,8 +614,8 @@ void ostanov() {
   Serial.print("page1.p5.pic=4\xFF\xFF\xFF");
   Serial.print("page1.bt2.val=1\xFF\xFF\xFF");
   //проверяем потухла или нет
-  fs = digitalRead(FLAMESENSORPIN);
-  if (fs == 1) {                             // если пламени нет, система остановилась в штатном режиме
+  fs1 = digitalRead(FLAMESENSORPIN);
+  if (fs1 == 1) {                             // если пламени нет, система остановилась в штатном режиме
     x1 = 0;     // состояние горелки "не горит"
     String var = String("page0.t15.txt=\"") + String("fire off") + String("\"") + String("\xFF\xFF\xFF");
     Serial.print(var); //индикация на дисплее "горение"
@@ -990,8 +1056,8 @@ packetIdPub2 = mqttClient.publish("esp32/DHT_Temp", 1, true, var.c_str());
   //проверяем датчик пламени, если что-то не так обрабатываем ошибку
   if ((millis() - flame_sensor) >= period_flame_sensor) {
     flame_sensor = millis();
-    fs = digitalRead(FLAMESENSORPIN);
-    if (x1 == 1 && fs == 1 || x1 == 0 && fs == 0) { //если состояние системы - работа и датчик пламени показывает отсутствие пламени
+    fs1 = digitalRead(FLAMESENSORPIN);
+    if (x1 == 1 && fs1 == 1 || x1 == 0 && fs1 == 0) { //если состояние системы - работа и датчик пламени показывает отсутствие пламени
       fireError(); //ошибка  горение
     }
   }
