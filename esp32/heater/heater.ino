@@ -124,6 +124,8 @@ String var;
 byte olsp = 0; // флаг датчика топлива
 byte ohsp = 0; // флаг датчика топлива
 
+char my_buffer[25]; // Массив для хранения символов имени сети
+
 // функция вывода листа папок с флешки
 void listDir(fs::FS &fs, const char * dirname, uint8_t levels){
     Serial.printf("Listing directory: %s\n", dirname);
@@ -154,6 +156,26 @@ void listDir(fs::FS &fs, const char * dirname, uint8_t levels){
         }
         file = root.openNextFile();
     }
+}
+
+//функция чтения имени сети wi-fi
+void readFile(fs::FS &fs, const char * path){
+    Serial.printf("Reading file: %s\n", path);
+
+    File file = fs.open(path);
+    if(!file){
+        Serial.println("Failed to open file for reading");
+        return;
+    }
+
+    Serial.print("Read from file: ");
+    int i = 0;
+    while(file.available()){
+        my_buffer[i] = file.read();
+        i++;
+        //Serial.write(file.read());
+    }
+    file.close();
 }
 
 //Функция подключения к WiFi
@@ -286,6 +308,8 @@ float getVPP(){
    return result;
 
 } */
+
+
 
 void setup(void) {
   //Работа с флешкартой
@@ -1040,9 +1064,10 @@ packetIdPub2 = mqttClient.publish("esp32/DHT_Temp", 1, true, var.c_str());
   //Serial.print("ref page0\xFF\xFF\xFF");
 
   //вывод листа папок
-  listDir(SD, "/", 0);
-
-  }
+  //listDir(SD, "/", 0);
+  readFile(SD, "/network_name.txt");
+  Serial.println(my_buffer);
+    }
 
   // Читаем датчик 18b20
   if ((millis() - T18b20) >= period_18b20) {
