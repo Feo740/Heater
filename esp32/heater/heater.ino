@@ -31,7 +31,7 @@ const char* password = "ferrari220";
 #define OILHIGHSENSOREPIN 13 // вход высокого уровня датчика масла в бачке
 #define OILPUMPPIN 23 //выход включения насоса масла
 #define SPARKLEPIN 21 // выход подключения искры
-#define CURRENT_SENSOR 33 // Вход датчика тока
+//#define CURRENT_SENSOR 33 // Вход датчика тока
 
 #define MQTT_HOST IPAddress(212, 92, 170, 246) //адрес сервера MQTT
 #define MQTT_PORT 1883 // порт сервера MQTT
@@ -259,7 +259,7 @@ void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties 
     }
   }
 }
-
+/*
 float getVPP(){
   float result;
   int readValue;             //value read from the sensor
@@ -273,19 +273,19 @@ float getVPP(){
        // see if you have a new maxValue
        if (readValue > maxValue)
       {
-           /*record the maximum sensor value*/
+           //record the maximum sensor value
            maxValue = readValue;
        }
        if (readValue < minValue)
        {
-           /*record the minimum sensor value*/
+           //record the minimum sensor value
            minValue = readValue;
        }
    }
    result = ((maxValue - minValue) * 2.5)/4096.0;
    return result;
 
-}
+} */
 
 void setup(void) {
   //Работа с флешкартой
@@ -320,8 +320,8 @@ void setup(void) {
 
 
    // Конфигурируем АЦП модуль 1
-   adc1_config_width(ADC_WIDTH_BIT_12);
-   adc1_config_channel_atten(ADC1_CHANNEL_5,ADC_ATTEN_DB_11); // Используем канал на 33 пине, задаем максимальное ослабление сигнала 11 Db
+   //adc1_config_width(ADC_WIDTH_BIT_12);
+   //adc1_config_channel_atten(ADC1_CHANNEL_5,ADC_ATTEN_DB_11); // Используем канал на 33 пине, задаем максимальное ослабление сигнала 11 Db
   // чтение настроек с флэш-памяти
   EEPROM.begin(EEPROM_SIZE); //инициализация EEPROM с определенным размером
   oil_temp_hi = EEPROM.read(1); // читаем последнее значение из флеш-памяти
@@ -350,7 +350,7 @@ void setup(void) {
   pinMode(OILLOWSENSOREPIN, INPUT);
   pinMode(OILHIGHSENSOREPIN, INPUT);
   pinMode(SPARKLEPIN, OUTPUT);
-  pinMode(CURRENT_SENSOR, INPUT);
+  //pinMode(CURRENT_SENSOR, INPUT);
   digitalWrite(SPARKLEPIN, LOW);
   digitalWrite(OILPUMPPIN, LOW);
   digitalWrite(AIRPIN, LOW);
@@ -664,6 +664,7 @@ void All_on(){
       uint16_t packetIdPub2 = mqttClient.publish("esp32/ALL", 1, true, var.c_str());
   }
 
+
 void All_off(){
         if (x1 == 1) {
         ostanov();
@@ -680,7 +681,7 @@ void All_off(){
         obnulenie();
       }
   }
-
+/*
 void current(){
 Voltage = getVPP();
 VRMS = (Voltage/2);// *0.707;
@@ -691,14 +692,14 @@ if (AmpsRMS < 0.5){
 String var = String(AmpsRMS, 2);
   // публикуем MQTT-сообщение в топике «esp32/current»
     uint16_t packetIdPub2 = mqttClient.publish("esp32/current", 1, true, var.c_str());
-  }
+  }  */
 
 
 void loop(void) {
 
 if ((millis() - blink1) >= period_blink1) {
   blink1 = millis();
-  current();
+  //current();
 
   if (var_blink1 == 0){
     var_blink1 = 1;
@@ -1037,6 +1038,9 @@ packetIdPub2 = mqttClient.publish("esp32/DHT_Temp", 1, true, var.c_str());
   Serial.print(ip);
   Serial.print(String("\"") + String("\xFF\xFF\xFF"));
   //Serial.print("ref page0\xFF\xFF\xFF");
+
+  //вывод листа папок
+  listDir(SD, "/", 0);
 
   }
 
