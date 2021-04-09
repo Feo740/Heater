@@ -15,8 +15,10 @@ extern "C" {
 }
 
 //настройки подключение к сети Wifi
-const char* ssid = "MikroTik-1EA2D2";
-const char* password = "ferrari220";
+//const char* ssid = "MikroTik-1EA2D2";
+char* ssid = "";
+//const char* password = "ferrari220";
+char* password = "";
 //Свободные пины:  D4, D5, D18, D19, D22, D2, D26
 #define EEPROM_SIZE 10 //количество байтов, к которым хотим получить доступ в EEPROM
 #define DHTPIN 14     // контакт, к которому подключается DHT
@@ -45,10 +47,10 @@ TimerHandle_t wifiReconnectTimer;
 
 OneWire oneWire(ONE_WIRE_BUS); // Pass our oneWire reference to Dallas Temperature sensor
 DallasTemperature sensors(&oneWire);
-DeviceAddress sensor1 = { 0x28, 0x4D, 0x82, 0x5, 0x5, 0x0, 0x0, 0xDD };
-DeviceAddress sensor2 = { 0x28, 0xC1, 0xC6, 0x5, 0x5, 0x0, 0x0, 0xBC };
-DeviceAddress sensor3 = { 0x28, 0x4, 0xC2, 0x5, 0x5, 0x0, 0x0, 0xD7 };
-DeviceAddress sensor4 = { 0x28, 0x90, 0xC3, 0x5, 0x5, 0x0, 0x0, 0x77 };
+DeviceAddress sensor1 = { 0x28, 0x4D, 0x82, 0x5, 0x5, 0x0, 0x0, 0xDD };// датчик температуры масла
+DeviceAddress sensor2 = { 0x28, 0xC1, 0xC6, 0x5, 0x5, 0x0, 0x0, 0xBC };//датчик температуры подачи
+DeviceAddress sensor3 = { 0x28, 0x4, 0xC2, 0x5, 0x5, 0x0, 0x0, 0xD7 };//датчик температуры обратки
+DeviceAddress sensor4 = { 0x28, 0x90, 0xC3, 0x5, 0x5, 0x0, 0x0, 0x77 };//датчик температуры резервный
 DHT dht(DHTPIN, DHTTYPE);
 
 IPAddress ip;
@@ -123,7 +125,7 @@ float temp_sensor = 0;
 String var;
 byte olsp = 0; // флаг датчика топлива
 byte ohsp = 0; // флаг датчика топлива
-
+byte sd_con = 0; //флаг подключенной флешки
 char my_buffer[25]; // Массив для хранения символов имени сети
 
 // функция вывода листа папок с флешки
@@ -218,18 +220,11 @@ void WiFiEvent(WiFiEvent_t event) {
 // в этом фрагменте добавляем топики,
 // на которые будет подписываться ESP32:
 void onMqttConnect(bool sessionPresent) {
-  //Serial.println("Connected to MQTT.");  //  "Подключились по MQTT."
-  //Serial.print("Session present: ");  //  "Текущая сессия: "
-  //Serial.println(sessionPresent);
-  // подписываем ESP32 на топик «esp32/led»:
+  // подписываем ESP32 на топик «phone/ALL»:
   uint16_t packetIdSub = mqttClient.subscribe("phone/ALL", 0);
-  //Serial.print("Subscribing at QoS 0, packetId: ");
-         //  "Подписываемся при QoS 0, ID пакета: "
-  //Serial.println(packetIdSub);
 }
 
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
-  //Serial.println("Disconnected from MQTT.");
              //  "Отключились от MQTT."
   if (WiFi.isConnected()) {
     xTimerStart(mqttReconnectTimer, 0);
@@ -309,18 +304,21 @@ float getVPP(){
 
 } */
 
-
-
-void setup(void) {
+// функция проверяет подключена ли sd-карточка
+void SD_connect (){
   //Работа с флешкартой
   if(!SD.begin()){
           Serial.println("Card Mount Failed");
+          sd_con = 0;
           return;
+      } else {
+        sd_con = 1;
       }
       uint8_t cardType = SD.cardType();
 
       if(cardType == CARD_NONE){
           Serial.println("No SD card attached");
+          sd_con = 0;
           return;
       }
 
@@ -337,13 +335,10 @@ void setup(void) {
 
       uint64_t cardSize = SD.cardSize() / (1024 * 1024);
       Serial.printf("SD Card Size: %lluMB\n", cardSize);
+}
 
-      listDir(SD, "/", 0);
-
-
-
-
-   // Конфигурируем АЦП модуль 1
+void setup(void) {
+     // Конфигурируем АЦП модуль 1
    //adc1_config_width(ADC_WIDTH_BIT_12);
    //adc1_config_channel_atten(ADC1_CHANNEL_5,ADC_ATTEN_DB_11); // Используем канал на 33 пине, задаем максимальное ослабление сигнала 11 Db
   // чтение настроек с флэш-памяти
@@ -382,11 +377,25 @@ void setup(void) {
   digitalWrite(STARTPIN, LOW);
   digitalWrite(OILHEATPIN, LOW);
   fs1 = digitalRead(FLAMESENSORPIN);
+  // читаем флешку если она есть
+  SD_connect ();
+  if (sd_con == 1){
+    readFile(SD, "/network_name.txt");
+    ssid = my_buffer;
+    Serial.println(ssid);
+    readFile(SD, "/network_password.txt");
+    password = my_buffer;
+    Serial.println(password);
+  } else {
+    Serial.println("error SD connect");
+  }
+
+
   // инициализация дисплея
   obnulenie();
 
-  // настраиваем сеть
 
+  // настраиваем сеть
   mqttReconnectTimer = xTimerCreate("mqttTimer", pdMS_TO_TICKS(2000), pdFALSE, (void*)0, reinterpret_cast<TimerCallbackFunction_t>(connectToMqtt));
   wifiReconnectTimer = xTimerCreate("wifiTimer", pdMS_TO_TICKS(2000), pdFALSE, (void*)0, reinterpret_cast<TimerCallbackFunction_t>(connectToWifi));
   connectToWifi();
@@ -1062,12 +1071,7 @@ packetIdPub2 = mqttClient.publish("esp32/DHT_Temp", 1, true, var.c_str());
   Serial.print(ip);
   Serial.print(String("\"") + String("\xFF\xFF\xFF"));
   //Serial.print("ref page0\xFF\xFF\xFF");
-
-  //вывод листа папок
-  //listDir(SD, "/", 0);
-  readFile(SD, "/network_name.txt");
-  Serial.println(my_buffer);
-    }
+      }
 
   // Читаем датчик 18b20
   if ((millis() - T18b20) >= period_18b20) {
