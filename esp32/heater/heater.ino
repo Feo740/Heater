@@ -15,10 +15,14 @@ extern "C" {
 }
 
 //настройки подключение к сети Wifi
-//const char* ssid = "MikroTik-1EA2D2";
-char* ssid = "";
+//char ssid_orig[] = "MikroTik-1EA2D2";
+char pass_buffer[25]; // Массив для хранения символов пароля сети
+char net_buffer[25]; // Массив для хранения символов имени сети
+ char* ssid = &net_buffer[0];
+ char* password = &pass_buffer[0];
 //const char* password = "ferrari220";
-char* password = "";
+
+byte buffer_count = 0;
 //Свободные пины:  D4, D5, D18, D19, D22, D2, D26
 #define EEPROM_SIZE 10 //количество байтов, к которым хотим получить доступ в EEPROM
 #define DHTPIN 14     // контакт, к которому подключается DHT
@@ -126,8 +130,8 @@ String var;
 byte olsp = 0; // флаг датчика топлива
 byte ohsp = 0; // флаг датчика топлива
 byte sd_con = 0; //флаг подключенной флешки
-char my_buffer[25]; // Массив для хранения символов имени сети
 
+char my_buffer[25]; // Массив для хранения символов имени сети
 // функция вывода листа папок с флешки
 void listDir(fs::FS &fs, const char * dirname, uint8_t levels){
     Serial.printf("Listing directory: %s\n", dirname);
@@ -175,8 +179,8 @@ void readFile(fs::FS &fs, const char * path){
     while(file.available()){
         my_buffer[i] = file.read();
         i++;
-        //Serial.write(file.read());
-    }
+                  }
+    buffer_count = i;
     file.close();
 }
 
@@ -198,7 +202,7 @@ void connectToMqtt() {
 //Функция переподключения к Wifi и MQTT  при обрыве связи
 void WiFiEvent(WiFiEvent_t event) {
   Serial.printf("[WiFi-event] event: %d\n", event);
-  switch(event) {
+    switch(event) {
     case SYSTEM_EVENT_STA_GOT_IP:
       Serial.println("WiFi connected");  //  "Подключились к WiFi"
       Serial.println("IP address: ");  //  "IP-адрес: "
@@ -211,6 +215,10 @@ void WiFiEvent(WiFiEvent_t event) {
       // делаем так, чтобы ESP32
       // не переподключалась к MQTT
       // во время переподключения к WiFi:
+      Serial.printf("SSID=");
+      Serial.println(ssid);
+      Serial.printf("PASS=");
+      Serial.println(password);
       xTimerStop(mqttReconnectTimer, 0);
       xTimerStart(wifiReconnectTimer, 0);
       break;
@@ -379,12 +387,29 @@ void setup(void) {
   fs1 = digitalRead(FLAMESENSORPIN);
   // читаем флешку если она есть
   SD_connect ();
-  if (sd_con == 1){
+    if (sd_con == 1){
+
+    for (int i=0; i<25; i++) {
+      net_buffer[i] = 0;
+      my_buffer[i] = 0;
+      pass_buffer[i] = 0;
+    }
+
     readFile(SD, "/network_name.txt");
-    ssid = my_buffer;
-    Serial.println(ssid);
+    for (int i=0; i<25; i++) {
+      net_buffer[i] = my_buffer[i];
+      my_buffer[i] = 0;
+    }
+
     readFile(SD, "/network_password.txt");
-    password = my_buffer;
+    for (int i=0; i<25; i++) {
+      pass_buffer[i] = my_buffer[i];
+      my_buffer[i] = 0;
+    }
+
+    Serial.printf("SSID=");
+    Serial.println(ssid);
+    Serial.printf("PASS=");
     Serial.println(password);
   } else {
     Serial.println("error SD connect");
