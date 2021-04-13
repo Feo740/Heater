@@ -1100,6 +1100,13 @@ packetIdPub2 = mqttClient.publish("esp32/DHT_Temp", 1, true, var.c_str());
 
   // Читаем датчик 18b20
   if ((millis() - T18b20) >= period_18b20) {
+//{0x28, 0x4D, 0x82, 0x5, 0x5, 0x0, 0x0, 0xD};
+    byte sensor_massive [8] = {0x28, 0x4D, 0x82, 0x5, 0x5, 0x0, 0x0, 0x4D};
+    //for (int i=0;i<7;i++) {
+      //sensor1[i]=sensor_massive [i];
+    //}
+    //DeviceAddress sensor1 = { 0x28, 0x4D, 0x82, 0x5, 0x5, 0x0, 0x0, 0xDD };
+    sensor1 = {sensor_massive [0],sensor_massive [1],sensor_massive [2],sensor_massive [3],sensor_massive [4],sensor_massive [5],sensor_massive [6],sensor_massive [7]};
     T18b20 = millis();
     sensors.requestTemperatures(); // Send the command to get temperatures
     temp_sensor = sensors.getTempC(sensor1);
