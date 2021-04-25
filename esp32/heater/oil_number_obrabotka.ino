@@ -11,12 +11,15 @@ for (int i=0; i<2; i++){
   simbol[i] = 0;
 }
 
-for (int i=0; i<34; i++){
+for (int i=0; i<40; i++){
   // проверяем в строке конец символа
   if (oil_buffer[i] == ','){
-    f=0; //флаг начала символа
+    f=0; //флаг - конец символа
     j=0; // счетчик для массива символа
     switch(simbol[0]){
+      case '0':
+      st_razriad=0;
+      break;
       case '1':
       st_razriad=1;
       break;
@@ -65,6 +68,9 @@ for (int i=0; i<34; i++){
         }
 
     switch(simbol[1]){
+          case '0':
+          ml_razriad=0;
+          break;
           case '1':
           ml_razriad=1;
           break;
@@ -120,6 +126,8 @@ for (int i=0; i<34; i++){
       t[l] = st_razriad*16+ml_razriad;
       l++;
         }
+
+
   }
 
   // если мы уже читам сам символ из строки
@@ -131,6 +139,9 @@ for (int i=0; i<34; i++){
   if (oil_buffer[i] == 'x'){
     f=1; //флаг начала символа
     j=0; // счетчик для массива символа
+    for (int i=0; i<2; i++){
+          simbol[i] = 0;
+        }
   }
 }
 }

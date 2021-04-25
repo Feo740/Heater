@@ -27,7 +27,7 @@ char net_buffer[25]; // Массив для хранения символов и
  char* password = &pass_buffer[0];
 
  // работа с номером датчика температуры маслобака
- char oil_buffer[34]; // Массив для хранения символов из файлов конфигураций
+ char oil_buffer[40]; // Массив для хранения символов из файлов конфигураций
 
 
 //Свободные пины:  D4, D5, D18, D19, D22, D2, D26
@@ -81,7 +81,7 @@ String SW_var_temp_num = "";
 // Нам нужно задать период таймера В МИЛЛИСЕКУНДАХ
 // дней*(24 часов в сутках)*(60 минут в часе)*(60 секунд в минуте)*(1000 миллисекунд в секунде)
 unsigned int period_DHT22 = 60000; // его же используем для обновления IP
-unsigned int period_18b20 = 10000;
+unsigned int period_18b20 = 30000;
 unsigned int period_flame_sensor = 2000;
 unsigned int period_fuel_sensor = 10000;
 unsigned int period_blink1 = 2000; // задаем период мигания светодиода пинга
@@ -426,7 +426,7 @@ void setup(void) {
     }
 
     readFile(SD, "/oil_number.txt");
-    for (int i=0; i<34; i++) {
+    for (int i=0; i<40; i++) {
       oil_buffer[i] = my_buffer[i];
       my_buffer[i] = 0;
     }
@@ -841,6 +841,15 @@ void Read_18b20(byte addr[8]){
   Serial.print(fahrenheit);
   Serial.println(" Fahrenheit");
   result = String(celsius);
+  String var2 = "page0.t0.txt=\"" + String(celsius) + "\"";
+  Serial.print(var2 + "\xFF\xFF\xFF");
+
+/*
+String var3 = "t1.txt=\"" + String(h) + "\"";
+String var4 = "t8.txt=\"" + String(t) + "\"";
+Serial.print(var3 + "\xFF\xFF\xFF");
+Serial.print(var4 + "\xFF\xFF\xFF");
+*/
   // публикуем MQTT-сообщение в топике «esp32/temperature»
   uint16_t packetIdPub2 = mqttClient.publish("esp32/temperature", 1, true, result.c_str());
 }
@@ -1203,23 +1212,15 @@ packetIdPub2 = mqttClient.publish("esp32/DHT_Temp", 1, true, var.c_str());
 
   // Читаем датчик 18b20
   if ((millis() - T18b20) >= period_18b20) {
-    Read_18b20(addr1);
-    T18b20 = millis();
+    Read_18b20(t); //addr1
+  /*  T18b20 = millis();
     Serial.println("Vin read from file");
     for (int i=0; i<8; i++){
     Serial.print(t[i]);
-    Serial.print(", ");
+    Serial.print(", ");*/
   }
-    /*
-    sensors.requestTemperatures(); // Send the command to get temperatures
-    temp_sensor = sensors.getTempC(sensor1);
-    String var = String(sensors.getTempC(sensor1), 2);
-    String var2 = "t0.txt=\"" + var + "C" + "\"";
-    Serial.print(var2 + "\xFF\xFF\xFF");
 
-    // публикуем MQTT-сообщение в топике «esp32/temperature»
-    uint16_t packetIdPub2 = mqttClient.publish("esp32/temperature", 1, true, var.c_str()); */
-  }
+
 
   //проверяем датчик пламени, если что-то не так обрабатываем ошибку
   if ((millis() - flame_sensor) >= period_flame_sensor) {
