@@ -3,7 +3,7 @@
 #include <WiFi.h>
 #include "DHT.h"
 #include "OneWire.h"
-#include "DallasTemperature.h"
+//#include "DallasTemperature.h"
 #include "EEPROM.h"
 #include <AsyncMqttClient.h>
 #include "FS.h"
@@ -14,15 +14,22 @@ extern "C" {
 #include "freertos/timers.h"
 }
 
-//настройки подключение к сети Wifi
 //char ssid_orig[] = "MikroTik-1EA2D2";
+//const char* password = "ferrari220";
+
+// переменные для работы с флешкартой
+
+//работа с именем сети и паролем
+char my_buffer[25]; // Массив для хранения символов из файлов конфигураций
 char pass_buffer[25]; // Массив для хранения символов пароля сети
 char net_buffer[25]; // Массив для хранения символов имени сети
  char* ssid = &net_buffer[0];
  char* password = &pass_buffer[0];
-//const char* password = "ferrari220";
 
-byte buffer_count = 0;
+ // работа с номером датчика температуры маслобака
+ char oil_buffer[34]; // Массив для хранения символов из файлов конфигураций
+
+
 //Свободные пины:  D4, D5, D18, D19, D22, D2, D26
 #define EEPROM_SIZE 10 //количество байтов, к которым хотим получить доступ в EEPROM
 #define DHTPIN 14     // контакт, к которому подключается DHT
@@ -31,7 +38,7 @@ byte buffer_count = 0;
 #define STARTPIN 12  // контакт пуска горелки ЗАМЕНИТЬ
 #define AIRFLOWPIN 25 // контакт поддува вторичного воздуха
 #define DHTTYPE DHT22   // DHT 11
-#define ONE_WIRE_BUS 15 //контакт датчика 18б20
+//#define ONE_WIRE_BUS 15 //контакт датчика 18б20
 #define FLAMESENSORPIN 35 //вход датчика пламени
 #define OILLOWSENSOREPIN 34 // вход низкого уровня датчика масла в бачке
 #define OILHIGHSENSOREPIN 13 // вход высокого уровня датчика масла в бачке
@@ -41,6 +48,10 @@ byte buffer_count = 0;
 
 #define MQTT_HOST IPAddress(212, 92, 170, 246) //адрес сервера MQTT
 #define MQTT_PORT 1883 // порт сервера MQTT
+OneWire ds(15); // порт для подключения датчика температуры
+
+
+
 
 // создаем объекты для управления MQTT-клиентом:
 //Создаем объект для управления MQTT-клиентом и таймеры, которые понадобятся для повторного подключения к MQTT-брокеру или WiFi-роутеру, если связь вдруг оборвется.
@@ -48,13 +59,17 @@ AsyncMqttClient mqttClient;
 TimerHandle_t mqttReconnectTimer;
 TimerHandle_t wifiReconnectTimer;
 
-
+// Адреса датчиков температуры
+byte addr1[8]= { 0x28, 0x4D, 0x82, 0x5, 0x5, 0x0, 0x0, 0xDD };
+byte t[8]; // финальный результат в массиве типа byte
+/*
 OneWire oneWire(ONE_WIRE_BUS); // Pass our oneWire reference to Dallas Temperature sensor
 DallasTemperature sensors(&oneWire);
 DeviceAddress sensor1 = { 0x28, 0x4D, 0x82, 0x5, 0x5, 0x0, 0x0, 0xDD };// датчик температуры масла
 DeviceAddress sensor2 = { 0x28, 0xC1, 0xC6, 0x5, 0x5, 0x0, 0x0, 0xBC };//датчик температуры подачи
 DeviceAddress sensor3 = { 0x28, 0x4, 0xC2, 0x5, 0x5, 0x0, 0x0, 0xD7 };//датчик температуры обратки
 DeviceAddress sensor4 = { 0x28, 0x90, 0xC3, 0x5, 0x5, 0x0, 0x0, 0x77 };//датчик температуры резервный
+*/
 DHT dht(DHTPIN, DHTTYPE);
 
 IPAddress ip;
@@ -76,6 +91,7 @@ unsigned int period_air_after = 5000; // задаем период длител�
 unsigned int period_air_ing = 5000; // задаем период от подачи воздуха до подачи искры
 unsigned int period_sparkle_ing = 2000; // задаем период подачи искры
 unsigned int period_between_sparkle_ing = 2000; // период между подачами искры
+unsigned int period_18b20_read = 500; // задержка для преобразования датчика 18b20
 
 //переменные счетчиков
 unsigned long dht22 = 0;
@@ -89,6 +105,7 @@ unsigned long air_after = 0;
 unsigned long air_ing = 0;
 unsigned long sparkle_ing = 0;
 unsigned long between_sparkle_ing = 0;
+unsigned long read_18b20 = 0;
 
 byte x = 0; // Флаг состояния системы 0-стоп, 1-работа, 2 - авария
 byte x1 = 0; // флаг состояния горелки 0 - не горит, 1 - горит,  2 - запуск, 3 - останов
@@ -104,6 +121,8 @@ byte sp = 0; // флаг состояния подачи искры
 byte sparkle_item = 0; // счетчик еоличества попыток запуска горелки
 byte var_blink1 = 0; // флаг для мигания светодиодом
 byte error_flag = 0; // переменная кода ошибки 0-нет, 1-ошибка наполнения топливом
+
+
 float fuel_tank = 0; // время заправки бака масла для епром
 float oil_temp_hi; //температура масла для выключения тена
 float oil_temp_low;// температура масла для включения тена
@@ -131,7 +150,7 @@ byte olsp = 0; // флаг датчика топлива
 byte ohsp = 0; // флаг датчика топлива
 byte sd_con = 0; //флаг подключенной флешки
 
-char my_buffer[25]; // Массив для хранения символов имени сети
+
 // функция вывода листа папок с флешки
 void listDir(fs::FS &fs, const char * dirname, uint8_t levels){
     Serial.printf("Listing directory: %s\n", dirname);
@@ -164,7 +183,7 @@ void listDir(fs::FS &fs, const char * dirname, uint8_t levels){
     }
 }
 
-//функция чтения имени сети wi-fi
+//функция чтения файлов конфигураций
 void readFile(fs::FS &fs, const char * path){
     Serial.printf("Reading file: %s\n", path);
 
@@ -180,8 +199,7 @@ void readFile(fs::FS &fs, const char * path){
         my_buffer[i] = file.read();
         i++;
                   }
-    buffer_count = i;
-    file.close();
+        file.close();
 }
 
 //Функция подключения к WiFi
@@ -406,6 +424,14 @@ void setup(void) {
       pass_buffer[i] = my_buffer[i];
       my_buffer[i] = 0;
     }
+
+    readFile(SD, "/oil_number.txt");
+    for (int i=0; i<34; i++) {
+      oil_buffer[i] = my_buffer[i];
+      my_buffer[i] = 0;
+    }
+    oil_number_obrabotka ();
+
 
     Serial.printf("SSID=");
     Serial.println(ssid);
@@ -752,6 +778,79 @@ String var = String(AmpsRMS, 2);
     uint16_t packetIdPub2 = mqttClient.publish("esp32/current", 1, true, var.c_str());
   }  */
 
+// функция чтения  температуры с датчика 18b20
+void Read_18b20(byte addr[8]){
+  //переменные для датчиков температуры
+  byte i;
+  byte present = 0;
+  byte type_s;
+  byte data[12];
+  float celsius, fahrenheit;
+  String result;
+
+
+  ds.reset();
+  ds.select(addr);
+  ds.write(0x44, 0);        // признак выбора режима питания 0-внешнее 1-паразитное
+  //delay(1000);
+  if ((millis() - read_18b20) >= period_18b20_read) {
+
+  read_18b20 = millis(); // обнуляем таймер на полсекунды - обработка датчиком
+  T18b20 = millis(); // обнуляем таймер опроса датчика
+
+  present = ds.reset();
+  ds.select(addr);
+  ds.write(0xBE);         // читаем результат
+
+  Serial.print("  Data = ");
+  Serial.print(present, HEX);
+  Serial.print(" ");
+  for ( i = 0; i < 9; i++) {           // нам требуется 9 байтов
+    data[i] = ds.read();
+    Serial.print(data[i], HEX);
+    Serial.print(" ");
+  }
+  Serial.print(" CRC=");
+  Serial.print(OneWire::crc8(data, 8), HEX);
+  Serial.println();
+
+  // Convert the data to actual temperature
+  // because the result is a 16 bit signed integer, it should
+  // be stored to an "int16_t" type, which is always 16 bits
+  // even when compiled on a 32 bit processor.
+  int16_t raw = (data[1] << 8) | data[0];
+  if (type_s) {
+    raw = raw << 3; // 9 bit resolution default
+    if (data[7] == 0x10) {
+      // "count remain" gives full 12 bit resolution
+      raw = (raw & 0xFFF0) + 12 - data[6];
+    }
+  } else {
+    byte cfg = (data[4] & 0x60);
+    // at lower res, the low bits are undefined, so let's zero them
+    if (cfg == 0x00) raw = raw & ~7;  // 9 bit resolution, 93.75 ms
+    else if (cfg == 0x20) raw = raw & ~3; // 10 bit res, 187.5 ms
+    else if (cfg == 0x40) raw = raw & ~1; // 11 bit res, 375 ms
+    //// default is 12 bit resolution, 750 ms conversion time
+  }
+  celsius = (float)raw / 16.0;
+  fahrenheit = celsius * 1.8 + 32.0;
+  Serial.print("  Temperature = ");
+  Serial.print(celsius);
+  Serial.print(" Celsius, ");
+  Serial.print(fahrenheit);
+  Serial.println(" Fahrenheit");
+  result = String(celsius);
+  // публикуем MQTT-сообщение в топике «esp32/temperature»
+  uint16_t packetIdPub2 = mqttClient.publish("esp32/temperature", 1, true, result.c_str());
+}
+}
+
+//функция возвращает массив  - адрес подключенного датчика температуры
+void read_vin_18b20(byte addr[8]){
+  ds.search(addr);
+  ds.reset_search();
+  }
 
 void loop(void) {
 
@@ -1060,6 +1159,10 @@ if ((millis() - blink1) >= period_blink1) {
       uint16_t packetIdPub2 = mqttClient.publish("esp32/SI", 1, true, SW_var_temp_num.c_str());
     }
 
+    //кнопка "запросить номер датчика температуры"
+    if (SW_var.equals("18b20_№")) {
+     read_vin_18b20(addr1);
+    }
 
   }
 
@@ -1100,22 +1203,22 @@ packetIdPub2 = mqttClient.publish("esp32/DHT_Temp", 1, true, var.c_str());
 
   // Читаем датчик 18b20
   if ((millis() - T18b20) >= period_18b20) {
-//{0x28, 0x4D, 0x82, 0x5, 0x5, 0x0, 0x0, 0xD};
-    byte sensor_massive [8] = {0x28, 0x4D, 0x82, 0x5, 0x5, 0x0, 0x0, 0x4D};
-    //for (int i=0;i<7;i++) {
-      //sensor1[i]=sensor_massive [i];
-    //}
-    //DeviceAddress sensor1 = { 0x28, 0x4D, 0x82, 0x5, 0x5, 0x0, 0x0, 0xDD };
-    sensor1 = {sensor_massive [0],sensor_massive [1],sensor_massive [2],sensor_massive [3],sensor_massive [4],sensor_massive [5],sensor_massive [6],sensor_massive [7]};
+    Read_18b20(addr1);
     T18b20 = millis();
+    Serial.println("Vin read from file");
+    for (int i=0; i<8; i++){
+    Serial.print(t[i]);
+    Serial.print(", ");
+  }
+    /*
     sensors.requestTemperatures(); // Send the command to get temperatures
     temp_sensor = sensors.getTempC(sensor1);
     String var = String(sensors.getTempC(sensor1), 2);
     String var2 = "t0.txt=\"" + var + "C" + "\"";
     Serial.print(var2 + "\xFF\xFF\xFF");
-  //Serial.print("ref page0\xFF\xFF\xFF");
+
     // публикуем MQTT-сообщение в топике «esp32/temperature»
-    uint16_t packetIdPub2 = mqttClient.publish("esp32/temperature", 1, true, var.c_str());
+    uint16_t packetIdPub2 = mqttClient.publish("esp32/temperature", 1, true, var.c_str()); */
   }
 
   //проверяем датчик пламени, если что-то не так обрабатываем ошибку
