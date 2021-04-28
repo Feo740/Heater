@@ -60,8 +60,9 @@ TimerHandle_t mqttReconnectTimer;
 TimerHandle_t wifiReconnectTimer;
 
 // Адреса датчиков температуры
-byte addr1[8]= { 0x28, 0x4D, 0x82, 0x5, 0x5, 0x0, 0x0, 0xDD };
+//byte addr1[8]= { 0x28, 0x4D, 0x82, 0x5, 0x5, 0x0, 0x0, 0xDD };
 byte t[8]; // финальный результат в массиве типа byte
+byte addr1[8];
 /*
 OneWire oneWire(ONE_WIRE_BUS); // Pass our oneWire reference to Dallas Temperature sensor
 DallasTemperature sensors(&oneWire);
@@ -802,17 +803,17 @@ void Read_18b20(byte addr[8]){
   ds.select(addr);
   ds.write(0xBE);         // читаем результат
 
-  Serial.print("  Data = ");
+/*  Serial.print("  Data = ");
   Serial.print(present, HEX);
-  Serial.print(" ");
+  Serial.print(" ");*/
   for ( i = 0; i < 9; i++) {           // нам требуется 9 байтов
     data[i] = ds.read();
-    Serial.print(data[i], HEX);
-    Serial.print(" ");
+    /*Serial.print(data[i], HEX);
+    Serial.print(" ");*/
   }
-  Serial.print(" CRC=");
+  /*Serial.print(" CRC=");
   Serial.print(OneWire::crc8(data, 8), HEX);
-  Serial.println();
+  Serial.println();*/
 
   // Convert the data to actual temperature
   // because the result is a 16 bit signed integer, it should
@@ -835,21 +836,15 @@ void Read_18b20(byte addr[8]){
   }
   celsius = (float)raw / 16.0;
   fahrenheit = celsius * 1.8 + 32.0;
-  Serial.print("  Temperature = ");
+  result = String(celsius);
+  indikacia(result, 0);
+  /*Serial.print("  Temperature = ");
   Serial.print(celsius);
   Serial.print(" Celsius, ");
   Serial.print(fahrenheit);
   Serial.println(" Fahrenheit");
-  result = String(celsius);
-  String var2 = "page0.t0.txt=\"" + String(celsius) + "\"";
-  Serial.print(var2 + "\xFF\xFF\xFF");
+  result = String(celsius);*/
 
-/*
-String var3 = "t1.txt=\"" + String(h) + "\"";
-String var4 = "t8.txt=\"" + String(t) + "\"";
-Serial.print(var3 + "\xFF\xFF\xFF");
-Serial.print(var4 + "\xFF\xFF\xFF");
-*/
   // публикуем MQTT-сообщение в топике «esp32/temperature»
   uint16_t packetIdPub2 = mqttClient.publish("esp32/temperature", 1, true, result.c_str());
 }
@@ -1169,8 +1164,15 @@ if ((millis() - blink1) >= period_blink1) {
     }
 
     //кнопка "запросить номер датчика температуры"
-    if (SW_var.equals("18b20_№")) {
+    if (SW_var.equals("number18b20")) {
      read_vin_18b20(addr1);
+     String temp_number = "";
+     for (int i=0;i<8;i++){
+     temp_number += "0x";  
+     temp_number += String(addr1[i],HEX);
+     temp_number += ",";
+        }
+      Serial.print("num18b20.txt=\"" + temp_number + "\"" + "\xFF\xFF\xFF");
     }
 
   }
@@ -1180,21 +1182,28 @@ if ((millis() - blink1) >= period_blink1) {
     obnovlenie (); //таймер подходит раз в минуту - отправим ВСЕ данные состояния горелки на смартфон
     dht22 = millis();
     float h = dht.readHumidity(); // считывание данных о температуре и влажности
-    delay(50);
+    delay(70);
     float t = dht.readTemperature();// считываем температуру в градусах Цельсия:
-    delay(50);
-    float f = dht.readTemperature(true);// считываем температуру в градусах Фаренгейта:
-    delay(50);
+    delay(70);
+    //float f = dht.readTemperature(true);// считываем температуру в градусах Фаренгейта:
+    //delay(50);
     // проверяем, корректно ли прочитались данные,
     // и если нет, то выходим и пробуем снова:
-    if (isnan(h) || isnan(t) || isnan(f)) {
-      Serial.println("Failed to read from DHT sensor!"); // "Не удалось прочитать данные с датчика DHT!"
-    } else {
+    if (isnan(h) || isnan(t)) {
+      //Serial.print("Failed to read from DHT sensor!"); // "Не удалось прочитать данные с датчика DHT!"
+      h=0;
+      t=0;
       String var3 = "t1.txt=\"" + String(h) + "\"";
-      String var4 = "t8.txt=\"" + String(t) + "\"";
       Serial.print(var3 + "\xFF\xFF\xFF");
+      String var4 = "t8.txt=\"" + String(t) + "\"";
       Serial.print(var4 + "\xFF\xFF\xFF");
       //Serial.print("ref page0\xFF\xFF\xFF");
+    } else {
+      String var3 = "t1.txt=\"" + String(h) + "\"";
+      Serial.print(var3 + "\xFF\xFF\xFF");
+      String var4 = "t8.txt=\"" + String(t) + "\"";
+      Serial.print(var4 + "\xFF\xFF\xFF");
+      //Serial.println("ref page0\xFF\xFF\xFF");
     }
 // отправляем данные MQTT
 String var = String(h);
@@ -1212,12 +1221,8 @@ packetIdPub2 = mqttClient.publish("esp32/DHT_Temp", 1, true, var.c_str());
 
   // Читаем датчик 18b20
   if ((millis() - T18b20) >= period_18b20) {
-    Read_18b20(t); //addr1
-  /*  T18b20 = millis();
-    Serial.println("Vin read from file");
-    for (int i=0; i<8; i++){
-    Serial.print(t[i]);
-    Serial.print(", ");*/
+    Read_18b20(t);
+
   }
 
 
