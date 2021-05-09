@@ -23,11 +23,17 @@ extern "C" {
 char my_buffer[25]; // Массив для хранения символов из файлов конфигураций
 char pass_buffer[25]; // Массив для хранения символов пароля сети
 char net_buffer[25]; // Массив для хранения символов имени сети
+char oil_buffer[40]; // Массив для хранения символов из файлов конфигураций
+char in_water_buffer[40]; // Массив для хранения символов из файлов конфигураций
+char out_water_buffer[40]; // Массив для хранения символов из файлов конфигураций
+char air_buffer[40]; // Массив для хранения символов из файлов конфигураций
+
  char* ssid = &net_buffer[0];
  char* password = &pass_buffer[0];
+ char* oil_number_18b20 = &oil_buffer[0];
 
- // работа с номером датчика температуры маслобака
- char oil_buffer[40]; // Массив для хранения символов из файлов конфигураций
+
+
 
 
 //Свободные пины:  D4, D5, D18, D19, D22, D2, D26
@@ -61,8 +67,18 @@ TimerHandle_t wifiReconnectTimer;
 
 // Адреса датчиков температуры
 //byte addr1[8]= { 0x28, 0x4D, 0x82, 0x5, 0x5, 0x0, 0x0, 0xDD };
-byte t[8]; // финальный результат в массиве типа byte
+byte t[8];
+byte addr_oil_temp[8]; // финальный результат в массиве типа byte
+byte addr_in_water_temp[8]; // финальный результат в массиве типа byte
+byte addr_out_water_temp[8]; // финальный результат в массиве типа byte
+byte addr_air_temp[8]; // финальный результат в массиве типа byte
 byte addr1[8];
+byte oil_temp_flag; // флаг наличия адреса в файле инициализации датчиков.
+byte in_water_temp_flag; // флаг наличия адреса в файле инициализации датчиков.
+byte out_water_temp_flag; // флаг наличия адреса в файле инициализации датчиков.
+byte air_temp_flag; // флаг наличия адреса в файле инициализации датчиков.
+
+String temp_number_reading = "!"; //текстовая переменная для хранения прочитанных адресов новых датчиков
 /*
 OneWire oneWire(ONE_WIRE_BUS); // Pass our oneWire reference to Dallas Temperature sensor
 DallasTemperature sensors(&oneWire);
@@ -202,6 +218,25 @@ void readFile(fs::FS &fs, const char * path){
                   }
         file.close();
 }
+
+//функция записи в файл конфигруции
+void writeFile(fs::FS &fs, const char * path, const char * message){
+    Serial.printf("Writing file: %s\n", path);
+
+    File file = fs.open(path, FILE_WRITE);
+    if(!file){
+        Serial.println("Failed to open file for writing");
+        return;
+    }
+    if(file.print(message)){
+        Serial.println("File written");
+    } else {
+        Serial.println("Write failed");
+    }
+    file.close();
+}
+
+
 
 //Функция подключения к WiFi
 void connectToWifi() {
@@ -431,14 +466,67 @@ void setup(void) {
       oil_buffer[i] = my_buffer[i];
       my_buffer[i] = 0;
     }
-    oil_number_obrabotka ();
 
+    if (oil_buffer[0] != '!'){  //если адрес не начинается с ключевого символа воскл знака, то адреса нет.
+      oil_temp_flag = 0; // Флаг - нет датчика на линии.
+    }
+    if (oil_buffer[0] == '!'){
+      oil_temp_flag = 1; // Флаг - нет датчика на линии.
+      number_obrabotka (oil_buffer);
+    }
+
+    readFile(SD, "/in_water_number.txt");
+    for (int i=0; i<40; i++) {
+      in_water_buffer[i] = my_buffer[i];
+      my_buffer[i] = 0;
+    }
+    if (in_water_buffer[0] != '!'){  //если адрес не начинается с ключевого символа воскл знака, то адреса нет.
+      in_water_temp_flag = 0; // Флаг - нет датчика на линии.
+    }
+    if (in_water_buffer[0] == '!'){
+      in_water_temp_flag = 1; // Флаг - нет датчика на линии.
+      number_obrabotka (in_water_buffer);
+    }
+
+    readFile(SD, "/out_water_number.txt");
+    for (int i=0; i<40; i++) {
+      out_water_buffer[i] = my_buffer[i];
+      my_buffer[i] = 0;
+    }
+    if (out_water_buffer[0] != '!'){  //если адрес не начинается с ключевого символа воскл знака, то адреса нет.
+      out_water_temp_flag = 0; // Флаг - нет датчика на линии.
+    }
+    if (out_water_buffer[0] == '!'){
+      out_water_temp_flag = 1; // Флаг - нет датчика на линии.
+      number_obrabotka (out_water_buffer);
+    }
+
+    readFile(SD, "/air_number.txt");
+    for (int i=0; i<40; i++) {
+      air_buffer[i] = my_buffer[i];
+      my_buffer[i] = 0;
+    }
+    if (air_buffer[0] != '!'){  //если адрес не начинается с ключевого символа воскл знака, то адреса нет.
+      air_temp_flag = 0; // Флаг - нет датчика на линии.
+    }
+    if (air_buffer[0] == '!'){
+      air_temp_flag = 1; // Флаг - нет датчика на линии.
+      number_obrabotka (air_buffer);
+      for(int i=0; i<7; i++){
+        addr_air_temp[i]=t[i];
+        t[i]=0;
+      }
+    }
 
     Serial.printf("SSID=");
     Serial.println(ssid);
     Serial.printf("PASS=");
     Serial.println(password);
-  } else {
+    Serial.printf("oil_number=");
+    Serial.println(oil_number_18b20);
+
+  }
+  else {
     Serial.println("error SD connect");
   }
 
@@ -780,7 +868,7 @@ String var = String(AmpsRMS, 2);
   }  */
 
 // функция чтения  температуры с датчика 18b20
-void Read_18b20(byte addr[8]){
+void Read_18b20(byte addr[8], int t, byte flag){
   //переменные для датчиков температуры
   byte i;
   byte present = 0;
@@ -797,7 +885,7 @@ void Read_18b20(byte addr[8]){
   if ((millis() - read_18b20) >= period_18b20_read) {
 
   read_18b20 = millis(); // обнуляем таймер на полсекунды - обработка датчиком
-  T18b20 = millis(); // обнуляем таймер опроса датчика
+
 
   present = ds.reset();
   ds.select(addr);
@@ -836,14 +924,12 @@ void Read_18b20(byte addr[8]){
   }
   celsius = (float)raw / 16.0;
   fahrenheit = celsius * 1.8 + 32.0;
+    if (flag == 1) {
   result = String(celsius);
-  indikacia(result, 0);
-  /*Serial.print("  Temperature = ");
-  Serial.print(celsius);
-  Serial.print(" Celsius, ");
-  Serial.print(fahrenheit);
-  Serial.println(" Fahrenheit");
-  result = String(celsius);*/
+} else{
+  result = "**.**";
+}
+  indikacia(result, t);
 
   // публикуем MQTT-сообщение в топике «esp32/temperature»
   uint16_t packetIdPub2 = mqttClient.publish("esp32/temperature", 1, true, result.c_str());
@@ -861,7 +947,6 @@ void loop(void) {
 if ((millis() - blink1) >= period_blink1) {
   blink1 = millis();
   //current();
-
   if (var_blink1 == 0){
     var_blink1 = 1;
     String var = String(var_blink1);
@@ -1166,14 +1251,61 @@ if ((millis() - blink1) >= period_blink1) {
     //кнопка "запросить номер датчика температуры"
     if (SW_var.equals("number18b20")) {
      read_vin_18b20(addr1);
-     String temp_number = "";
      for (int i=0;i<8;i++){
-     temp_number += "0x";  
-     temp_number += String(addr1[i],HEX);
-     temp_number += ",";
+     temp_number_reading += "0x";
+     temp_number_reading += String(addr1[i],HEX);
+     temp_number_reading += ",";
         }
-      Serial.print("num18b20.txt=\"" + temp_number + "\"" + "\xFF\xFF\xFF");
+      Serial.print("num18b20.txt=\"" + temp_number_reading + "\"" + "\xFF\xFF\xFF");
     }
+
+    if (SW_var.equals("maslo")){
+        unsigned char* buf = new unsigned char[100];
+        temp_number_reading.getBytes(buf, 100, 0);
+        const char *str2 = (const char*)buf;
+        writeFile(SD, "/oil_number.txt", str2);
+        /*readFile(SD, "/oil_number.txt");
+        for (int i=0; i<40; i++) {
+          oil_buffer[i] = my_buffer[i];
+          my_buffer[i] = 0;
+        }*/
+      }
+
+      if (SW_var.equals("battery")){
+          unsigned char* buf = new unsigned char[100];
+          temp_number_reading.getBytes(buf, 100, 0);
+          const char *str2 = (const char*)buf;
+          writeFile(SD, "/air_number.txt", str2);
+          /*readFile(SD, "/air_number.txt");
+          for (int i=0; i<40; i++) {
+            air_buffer[i] = my_buffer[i];
+            my_buffer[i] = 0;
+          }*/
+        }
+
+        if (SW_var.equals("obratka")){
+            unsigned char* buf = new unsigned char[100];
+            temp_number_reading.getBytes(buf, 100, 0);
+            const char *str2 = (const char*)buf;
+            writeFile(SD, "/in_water_number.txt", str2);
+            /*readFile(SD, "/air_number.txt");
+            for (int i=0; i<40; i++) {
+              air_buffer[i] = my_buffer[i];
+              my_buffer[i] = 0;
+            }*/
+          }
+
+          if (SW_var.equals("podacha")){
+              unsigned char* buf = new unsigned char[100];
+              temp_number_reading.getBytes(buf, 100, 0);
+              const char *str2 = (const char*)buf;
+              writeFile(SD, "/out_water_number.txt", str2);
+              /*readFile(SD, "/air_number.txt");
+              for (int i=0; i<40; i++) {
+                air_buffer[i] = my_buffer[i];
+                my_buffer[i] = 0;
+              }*/
+            }
 
   }
 
@@ -1221,9 +1353,16 @@ packetIdPub2 = mqttClient.publish("esp32/DHT_Temp", 1, true, var.c_str());
 
   // Читаем датчик 18b20
   if ((millis() - T18b20) >= period_18b20) {
-    Read_18b20(t);
-
-  }
+            //Read_18b20(addr_oil_temp, 0, oil_temp_flag);
+            //Read_18b20(addr_in_water_temp, 12, in_water_temp_flag);
+          //  Read_18b20(addr_out_water_temp, 3, out_water_temp_flag);
+          for(int i=0; i<7; i++){
+            Serial.print(addr_air_temp[i]);
+            Serial.print(", ");
+          }
+            Read_18b20(addr_air_temp, 17, air_temp_flag);
+            T18b20 = millis(); // обнуляем таймер опроса датчика
+            }
 
 
 

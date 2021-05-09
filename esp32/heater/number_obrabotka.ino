@@ -1,4 +1,4 @@
-void oil_number_obrabotka (){
+void number_obrabotka (char buffer[]){
 
 byte f=0; // флаг начала элемента
 byte j=0; // счетчик для массива символа
@@ -11,9 +11,9 @@ for (int i=0; i<2; i++){
   simbol[i] = 0;
 }
 
-for (int i=0; i<40; i++){
+for (int i=0; i<41; i++){
   // проверяем в строке конец символа
-  if (oil_buffer[i] == ','){
+  if (buffer[i] == ','){
     f=0; //флаг - конец символа
     j=0; // счетчик для массива символа
     switch(simbol[0]){
@@ -47,22 +47,22 @@ for (int i=0; i<40; i++){
       case '9':
       st_razriad=9;
       break;
-      case 'A':
+      case 'a':
       st_razriad=10;
       break;
-      case 'B':
+      case 'b':
       st_razriad=11;
       break;
-      case 'C':
+      case 'c':
       st_razriad=12;
       break;
-      case 'D':
+      case 'd':
       st_razriad=13;
       break;
-      case 'E':
+      case 'e':
       st_razriad=14;
       break;
-      case 'F':
+      case 'f':
       st_razriad=15;
       break;
         }
@@ -98,22 +98,22 @@ for (int i=0; i<40; i++){
           case '9':
           ml_razriad=9;
           break;
-          case 'A':
+          case 'a':
           ml_razriad=10;
           break;
-          case 'B':
+          case 'b':
           ml_razriad=11;
           break;
-          case 'C':
+          case 'c':
           ml_razriad=12;
           break;
-          case 'D':
+          case 'd':
           ml_razriad=13;
           break;
-          case 'E':
+          case 'e':
           ml_razriad=14;
           break;
-          case 'F':
+          case 'f':
           ml_razriad=15;
           break;
             }
@@ -136,7 +136,7 @@ for (int i=0; i<40; i++){
     j++;
   }
   // проверяем в строке начало нового символа
-  if (oil_buffer[i] == 'x'){
+  if (buffer[i] == 'x'){
     f=1; //флаг начала символа
     j=0; // счетчик для массива символа
     for (int i=0; i<2; i++){
