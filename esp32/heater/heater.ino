@@ -20,18 +20,18 @@ extern "C" {
 // переменные для работы с флешкартой
 
 //работа с именем сети и паролем
-char my_buffer[25]; // Массив для хранения символов из файлов конфигураций
+char my_buffer[41]; // Массив для хранения символов из файлов конфигураций
 char pass_buffer[25]; // Массив для хранения символов пароля сети
 char net_buffer[25]; // Массив для хранения символов имени сети
-char oil_buffer[40]; // Массив для хранения символов из файлов конфигураций
-char in_water_buffer[40]; // Массив для хранения символов из файлов конфигураций
-char out_water_buffer[40]; // Массив для хранения символов из файлов конфигураций
-char air_buffer[40]; // Массив для хранения символов из файлов конфигураций
+char oil_buffer[41]; // Массив для хранения символов из файлов конфигураций
+char in_water_buffer[41]; // Массив для хранения символов из файлов конфигураций
+char out_water_buffer[41]; // Массив для хранения символов из файлов конфигураций
+char air_buffer[41]; // Массив для хранения символов из файлов конфигураций
 
  char* ssid = &net_buffer[0];
  char* password = &pass_buffer[0];
  char* oil_number_18b20 = &oil_buffer[0];
-
+ char* air_number_18b20 = &air_buffer[0];
 
 
 
@@ -67,7 +67,7 @@ TimerHandle_t wifiReconnectTimer;
 
 // Адреса датчиков температуры
 //byte addr1[8]= { 0x28, 0x4D, 0x82, 0x5, 0x5, 0x0, 0x0, 0xDD };
-byte t[8];
+byte t[8] = { 0, 0, 0, 0, 0, 0, 0, 0};
 byte addr_oil_temp[8]; // финальный результат в массиве типа byte
 byte addr_in_water_temp[8]; // финальный результат в массиве типа byte
 byte addr_out_water_temp[8]; // финальный результат в массиве типа byte
@@ -461,7 +461,7 @@ void setup(void) {
       my_buffer[i] = 0;
     }
 
-    readFile(SD, "/oil_number.txt");
+  /*  readFile(SD, "/oil_number.txt");
     for (int i=0; i<40; i++) {
       oil_buffer[i] = my_buffer[i];
       my_buffer[i] = 0;
@@ -499,31 +499,32 @@ void setup(void) {
     if (out_water_buffer[0] == '!'){
       out_water_temp_flag = 1; // Флаг - нет датчика на линии.
       number_obrabotka (out_water_buffer);
-    }
+    }*/
 
     readFile(SD, "/air_number.txt");
-    for (int i=0; i<40; i++) {
+    for (int i=0; i<41; i++) {
       air_buffer[i] = my_buffer[i];
       my_buffer[i] = 0;
     }
     if (air_buffer[0] != '!'){  //если адрес не начинается с ключевого символа воскл знака, то адреса нет.
       air_temp_flag = 0; // Флаг - нет датчика на линии.
-    }
+          }
     if (air_buffer[0] == '!'){
-      air_temp_flag = 1; // Флаг - нет датчика на линии.
+      air_temp_flag = 1; // Флаг - есть датчик на линии.
+          }
       number_obrabotka (air_buffer);
-      for(int i=0; i<7; i++){
-        addr_air_temp[i]=t[i];
-        t[i]=0;
+      for (int i=0; i<8; i++){
+         addr_air_temp[i]=t[i];
+         t[i]=0;
       }
-    }
+
 
     Serial.printf("SSID=");
     Serial.println(ssid);
     Serial.printf("PASS=");
     Serial.println(password);
-    Serial.printf("oil_number=");
-    Serial.println(oil_number_18b20);
+    Serial.printf("air_number=");
+    Serial.println(air_number_18b20);
 
   }
   else {
@@ -1356,10 +1357,6 @@ packetIdPub2 = mqttClient.publish("esp32/DHT_Temp", 1, true, var.c_str());
             //Read_18b20(addr_oil_temp, 0, oil_temp_flag);
             //Read_18b20(addr_in_water_temp, 12, in_water_temp_flag);
           //  Read_18b20(addr_out_water_temp, 3, out_water_temp_flag);
-          for(int i=0; i<7; i++){
-            Serial.print(addr_air_temp[i]);
-            Serial.print(", ");
-          }
             Read_18b20(addr_air_temp, 17, air_temp_flag);
             T18b20 = millis(); // обнуляем таймер опроса датчика
             }
