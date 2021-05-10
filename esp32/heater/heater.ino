@@ -65,8 +65,7 @@ AsyncMqttClient mqttClient;
 TimerHandle_t mqttReconnectTimer;
 TimerHandle_t wifiReconnectTimer;
 
-// Адреса датчиков температуры
-//byte addr1[8]= { 0x28, 0x4D, 0x82, 0x5, 0x5, 0x0, 0x0, 0xDD };
+
 byte t[8] = { 0, 0, 0, 0, 0, 0, 0, 0};
 byte addr_oil_temp[8]; // финальный результат в массиве типа byte
 byte addr_in_water_temp[8]; // финальный результат в массиве типа byte
@@ -98,7 +97,10 @@ String SW_var_temp_num = "";
 // Нам нужно задать период таймера В МИЛЛИСЕКУНДАХ
 // дней*(24 часов в сутках)*(60 минут в часе)*(60 секунд в минуте)*(1000 миллисекунд в секунде)
 unsigned int period_DHT22 = 60000; // его же используем для обновления IP
-unsigned int period_18b20 = 30000;
+unsigned int period_18b20_1 = 30000;
+unsigned int period_18b20_2 = 25000;
+unsigned int period_18b20_3 = 20000;
+unsigned int period_18b20_4 = 23000;
 unsigned int period_flame_sensor = 2000;
 unsigned int period_fuel_sensor = 10000;
 unsigned int period_blink1 = 2000; // задаем период мигания светодиода пинга
@@ -113,7 +115,10 @@ unsigned int period_18b20_read = 500; // задержка для преобра�
 //переменные счетчиков
 unsigned long dht22 = 0;
 unsigned long blink1;
-unsigned long T18b20 = 0;
+unsigned long T18b20_1 = 0;
+unsigned long T18b20_2 = 0;
+unsigned long T18b20_3 = 0;
+unsigned long T18b20_4 = 0;
 unsigned long flame_sensor = 0;
 unsigned long fuel_sensor = 0;
 unsigned long fuel_tank_var = 0;
@@ -417,7 +422,10 @@ void setup(void) {
   period_between_sparkle_ing = 1000 * int(EEPROM.read (9)); // Читаем данные из памяти - время между подачей искры
   period_fuel_tank = fuel_tank*1000;
   dht22 = millis();
-  T18b20 = millis();
+  T18b20_1 = millis();
+  T18b20_2 = millis();
+  T18b20_3 = millis();
+  T18b20_4 = millis();
   flame_sensor = millis();
   fuel_sensor = millis();
   Serial.begin(9600);
@@ -461,8 +469,8 @@ void setup(void) {
       my_buffer[i] = 0;
     }
 
-  /*  readFile(SD, "/oil_number.txt");
-    for (int i=0; i<40; i++) {
+    readFile(SD, "/oil_number.txt");
+    for (int i=0; i<41; i++) {
       oil_buffer[i] = my_buffer[i];
       my_buffer[i] = 0;
     }
@@ -472,10 +480,14 @@ void setup(void) {
     }
     if (oil_buffer[0] == '!'){
       oil_temp_flag = 1; // Флаг - нет датчика на линии.
-      number_obrabotka (oil_buffer);
+      }
+    number_obrabotka (oil_buffer);
+    for (int i=0; i<8; i++){
+       addr_oil_temp[i]=t[i];
+       t[i]=0;
     }
 
-    readFile(SD, "/in_water_number.txt");
+  /*  readFile(SD, "/in_water_number.txt");
     for (int i=0; i<40; i++) {
       in_water_buffer[i] = my_buffer[i];
       my_buffer[i] = 0;
@@ -934,6 +946,7 @@ void Read_18b20(byte addr[8], int t, byte flag){
 
   // публикуем MQTT-сообщение в топике «esp32/temperature»
   uint16_t packetIdPub2 = mqttClient.publish("esp32/temperature", 1, true, result.c_str());
+  return;
 }
 }
 
@@ -1353,14 +1366,22 @@ packetIdPub2 = mqttClient.publish("esp32/DHT_Temp", 1, true, var.c_str());
       }
 
   // Читаем датчик 18b20
-  if ((millis() - T18b20) >= period_18b20) {
-            //Read_18b20(addr_oil_temp, 0, oil_temp_flag);
-            //Read_18b20(addr_in_water_temp, 12, in_water_temp_flag);
-          //  Read_18b20(addr_out_water_temp, 3, out_water_temp_flag);
-            Read_18b20(addr_air_temp, 17, air_temp_flag);
-            T18b20 = millis(); // обнуляем таймер опроса датчика
+  if ((millis() - T18b20_1) >= period_18b20_1) {
+      Read_18b20(addr_air_temp, 17, air_temp_flag);
+      T18b20_1 = millis(); // обнуляем таймер опроса датчика
             }
-
+  if ((millis() - T18b20_2) >= period_18b20_2) {
+      Read_18b20(addr_oil_temp, 0, oil_temp_flag);
+      T18b20_2 = millis(); // обнуляем таймер опроса датчика
+    }
+  if ((millis() - T18b20_3) >= period_18b20_3) {
+      Read_18b20(addr_out_water_temp, 3, out_water_temp_flag);
+      T18b20_3 = millis(); // обнуляем таймер опроса датчика
+                                          }
+  if ((millis() - T18b20_4) >= period_18b20_4) {
+      Read_18b20(addr_in_water_temp, 12, in_water_temp_flag);
+      T18b20_4 = millis(); // обнуляем таймер опроса датчика
+      }
 
 
   //проверяем датчик пламени, если что-то не так обрабатываем ошибку
