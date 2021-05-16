@@ -1,0 +1,370 @@
+{
+  "uuid": "050801086f81c4bccf5621b98566617f",
+  "path": "Offline/ESP32_fire",
+  "name": "ESP32_fire",
+  "content": "Плата управления горелкой.\n",
+  "created_at": "2021-04-05 22:04:11",
+  "updated_at": "2021-05-09 14:56:30",
+  "stick": "",
+  "documents": [
+    {
+      "uuid": "81f1dc05e9ab7318cb79dd76869751fb",
+      "title": "Sheet_2",
+      "description": "",
+      "docType": "1",
+      "master": "",
+      "thumb": "/images/thumb-default.png",
+      "components": {
+        "7ccd759151f34c16a77e2b429b557f8b": 1,
+        "5b8fd889a8d04158880013aadeb1ff49": 8,
+        "69a863bf85d54a8bb85f23c2e1961293": 1,
+        "bb009484ef804a24ac5d18c54b249586": 5,
+        "fd11c9e744c44aeab6011e8bd4c3ea86": 1,
+        "e545f26e87c74952857381bd0bff848e": 2,
+        "3d240747a85043e08408d9845ebe7995": 1,
+        "cb714840aa5048aea52ce0db306b09ac": 1,
+        "72b927f0162742298aac3d9e4e765b61": 3
+      },
+      "BOM": [
+        [
+          "Value",
+          "Quantity",
+          "Package",
+          "Components",
+          "CustomPara"
+        ],
+        [
+          "TF-01A",
+          1,
+          "TF-SMD_TF-01A",
+          "CARD1",
+          {
+            "BOM_Supplier": "LCSC",
+            "BOM_Manufacturer": "HRO",
+            "BOM_Manufacturer Part": "TF-01A",
+            "BOM_Supplier Part": "C91145",
+            "puuid": "9a08f47f425f4bad84311d285e13676f",
+            "uuid": "3d240747a85043e08408d9845ebe7995"
+          }
+        ],
+        [
+          "18b20 port",
+          4,
+          "KLS2-103-5.00-04P-4S",
+          "J6,J5,J7,J8",
+          {
+            "BOM_Manufacturer": "",
+            "BOM_Manufacturer Part": "KLS2-103-5.00-04P-4S",
+            "BOM_Supplier Part": "",
+            "BOM_Supplier": "ChipiDip",
+            "puuid": "bbbb2f7da36d4f86aadb5fdf61b47038",
+            "uuid": "5b8fd889a8d04158880013aadeb1ff49"
+          }
+        ],
+        [
+          "KLS2",
+          2,
+          "KLS2-103-5.00-04P-4S",
+          "J3,J4",
+          {
+            "BOM_Manufacturer": "",
+            "BOM_Manufacturer Part": "KLS2-103-5.00-04P-4S",
+            "BOM_Supplier Part": "",
+            "BOM_Supplier": "ChipiDip",
+            "puuid": "bbbb2f7da36d4f86aadb5fdf61b47038",
+            "uuid": "5b8fd889a8d04158880013aadeb1ff49"
+          }
+        ],
+        [
+          "DHT port",
+          1,
+          "KLS2-103-5.00-04P-4S",
+          "DHT",
+          {
+            "BOM_Manufacturer": "",
+            "BOM_Manufacturer Part": "KLS2-103-5.00-04P-4S",
+            "BOM_Supplier Part": "",
+            "BOM_Supplier": "ChipiDip",
+            "puuid": "bbbb2f7da36d4f86aadb5fdf61b47038",
+            "uuid": "5b8fd889a8d04158880013aadeb1ff49"
+          }
+        ],
+        [
+          "Fire port",
+          1,
+          "KLS2-103-5.00-04P-4S",
+          "FSP",
+          {
+            "BOM_Manufacturer": "",
+            "BOM_Manufacturer Part": "KLS2-103-5.00-04P-4S",
+            "BOM_Supplier Part": "",
+            "BOM_Supplier": "ChipiDip",
+            "puuid": "bbbb2f7da36d4f86aadb5fdf61b47038",
+            "uuid": "5b8fd889a8d04158880013aadeb1ff49"
+          }
+        ],
+        [
+          "ESP32",
+          1,
+          "ESP32 DEV KIT 30 PINS",
+          "ESP1",
+          {
+            "BOM_Manufacturer": "",
+            "BOM_Manufacturer Part": "ESP32-DEVKIT-C",
+            "BOM_Supplier Part": "",
+            "BOM_Supplier": "",
+            "puuid": "e81c6a15192a48469a3c1fe429ad6cf1",
+            "uuid": "7ccd759151f34c16a77e2b429b557f8b"
+          }
+        ],
+        [
+          "LM317_C22147",
+          1,
+          "TO-220-3_L10.0-W4.5-P2.54-L",
+          "U1",
+          {
+            "BOM_Supplier": "LCSC",
+            "BOM_Manufacturer": "CJ",
+            "BOM_Manufacturer Part": "LM317",
+            "BOM_Supplier Part": "C22147",
+            "BOM_LCSC Assembly": "Yes",
+            "BOM_Paste Type": "expand",
+            "puuid": "948e610cffd14df79f04c73832b1409b",
+            "uuid": "69a863bf85d54a8bb85f23c2e1961293"
+          }
+        ],
+        [
+          "MW-4M",
+          3,
+          "MW-4M",
+          "RELAY2,P1,RELAY1",
+          {
+            "BOM_Manufacturer Part": "DG306-5.0-02P-12-00A(H)",
+            "puuid": "44e38e5fc20d4861b7b8edd0592e21f0",
+            "uuid": "72b927f0162742298aac3d9e4e765b61"
+          }
+        ],
+        [
+          "1k",
+          3,
+          "R0603",
+          "R3,R4,R5",
+          {
+            "BOM_Supplier Part": "",
+            "BOM_Supplier": "",
+            "BOM_Manufacturer Part": "",
+            "puuid": "1bf59dff03ec4233aa077dc7cf0e92a1",
+            "uuid": "bb009484ef804a24ac5d18c54b249586"
+          }
+        ],
+        [
+          "330",
+          1,
+          "RES-TH_BD2.3-L6.5-P10.50-D0.5",
+          "R1",
+          {
+            "BOM_Supplier Part": "",
+            "BOM_Supplier": "",
+            "BOM_Manufacturer Part": "",
+            "puuid": "9ea59130ae074fa3abe27de8cbf71d91",
+            "uuid": "bb009484ef804a24ac5d18c54b249586"
+          }
+        ],
+        [
+          "1k",
+          1,
+          "RES-TH_BD2.3-L6.5-P10.50-D0.5",
+          "R2",
+          {
+            "BOM_Supplier Part": "",
+            "BOM_Supplier": "",
+            "BOM_Manufacturer Part": "",
+            "puuid": "9ea59130ae074fa3abe27de8cbf71d91",
+            "uuid": "bb009484ef804a24ac5d18c54b249586"
+          }
+        ],
+        [
+          "MW-2M",
+          1,
+          "MW-2M-OK",
+          "REBOOT",
+          {
+            "BOM_Manufacturer Part": "DG306-5.0-02P-12-00A(H)",
+            "puuid": "7b6225ae400948be9daf936d5d0e2319",
+            "uuid": "cb714840aa5048aea52ce0db306b09ac"
+          }
+        ],
+        [
+          "10u",
+          2,
+          "CAP-D5.0-F2.0",
+          "C3,C2",
+          {
+            "BOM_Supplier Part": "",
+            "BOM_Supplier": "",
+            "BOM_Manufacturer Part": "",
+            "puuid": "45235d6b6bed476885ad4ae06f63c9ad",
+            "uuid": "e545f26e87c74952857381bd0bff848e"
+          }
+        ],
+        [
+          "0.1u",
+          1,
+          "RAD-0.2",
+          "C1",
+          {
+            "BOM_Supplier Part": "",
+            "BOM_Supplier": "",
+            "BOM_Manufacturer Part": "",
+            "puuid": "75844c5980bb4094beb1dc6c0a3a9856",
+            "uuid": "fd11c9e744c44aeab6011e8bd4c3ea86"
+          }
+        ]
+      ],
+      "updateTime": 1620561390,
+      "createTime": 1617652845,
+      "histories": [],
+      "created_at": "2021-04-05 23:00:45",
+      "updated_at": "2021-05-09 14:56:30"
+    },
+    {
+      "uuid": "41b54a086466bccc3c6253e3be657795",
+      "title": "Sheet_1",
+      "description": "",
+      "docType": "1",
+      "master": "",
+      "thumb": "/images/thumb-default.png",
+      "components": {},
+      "BOM": [
+        [
+          "Value",
+          "Quantity",
+          "Package",
+          "Components",
+          "CustomPara"
+        ],
+        [
+          "KLS2",
+          8,
+          "KLS2-103-5.00-04P-4S",
+          "J7,J2,J3,J4,J5,J6,J1,J8",
+          {
+            "BOM_Manufacturer": "",
+            "BOM_Manufacturer Part": "KLS2-103-5.00-04P-4S",
+            "BOM_Supplier Part": "",
+            "BOM_Supplier": "ChipiDip",
+            "puuid": "bbbb2f7da36d4f86aadb5fdf61b47038",
+            "uuid": "5b8fd889a8d04158880013aadeb1ff49"
+          }
+        ],
+        [
+          "ESP32",
+          1,
+          "ESP32 DEV KIT 30 PINS",
+          "ESP1",
+          {
+            "BOM_Manufacturer": "",
+            "BOM_Manufacturer Part": "ESP32-DEVKIT-C",
+            "BOM_Supplier Part": "",
+            "BOM_Supplier": "",
+            "puuid": "e81c6a15192a48469a3c1fe429ad6cf1",
+            "uuid": "7ccd759151f34c16a77e2b429b557f8b"
+          }
+        ],
+        [
+          "LM317_C22147",
+          1,
+          "TO-220-3_L10.0-W4.5-P2.54-L",
+          "U1",
+          {
+            "BOM_Supplier": "LCSC",
+            "BOM_Manufacturer": "CJ",
+            "BOM_Manufacturer Part": "LM317",
+            "BOM_Supplier Part": "C22147",
+            "BOM_LCSC Assembly": "Yes",
+            "BOM_Paste Type": "expand",
+            "puuid": "948e610cffd14df79f04c73832b1409b",
+            "uuid": "69a863bf85d54a8bb85f23c2e1961293"
+          }
+        ],
+        [
+          "1k",
+          2,
+          "R0603",
+          "R1,R2",
+          {
+            "BOM_Supplier Part": "",
+            "BOM_Supplier": "",
+            "BOM_Manufacturer Part": "",
+            "puuid": "1bf59dff03ec4233aa077dc7cf0e92a1",
+            "uuid": "bb009484ef804a24ac5d18c54b249586"
+          }
+        ],
+        [
+          "1u",
+          2,
+          "CASE-A_3216",
+          "C2,C3",
+          {
+            "BOM_Supplier Part": "",
+            "BOM_Supplier": "",
+            "BOM_Manufacturer Part": "",
+            "puuid": "ce25118ef0b041b8a773e71ca28ae65d",
+            "uuid": "e545f26e87c74952857381bd0bff848e"
+          }
+        ],
+        [
+          "0.1u",
+          1,
+          "C0603",
+          "C1",
+          {
+            "BOM_Supplier Part": "",
+            "BOM_Supplier": "",
+            "BOM_Manufacturer Part": "",
+            "puuid": "f187d3c25f9f43a29b67d3cfa364ee78",
+            "uuid": "fd11c9e744c44aeab6011e8bd4c3ea86"
+          }
+        ]
+      ],
+      "updateTime": 1617652844,
+      "createTime": 1617652844,
+      "histories": [],
+      "created_at": "2021-04-05 23:00:44",
+      "updated_at": "2021-04-05 23:00:44"
+    },
+    {
+      "uuid": "7ab139b82809dbd9532ce4ccd1153183",
+      "puuid": "050801086f81c4bccf5621b98566617f",
+      "title": "PCB_ESP32_fire",
+      "filename": "PCB_ESP32_fire.json",
+      "description": "",
+      "docType": "3",
+      "master": "",
+      "thumb": "/images/thumb-default.png",
+      "components": {
+        "bbbb2f7da36d4f86aadb5fdf61b47038": 8,
+        "e81c6a15192a48469a3c1fe429ad6cf1": 1,
+        "948e610cffd14df79f04c73832b1409b": 1,
+        "19c77e72422b43b59c26b9fa67af5de4": 1,
+        "9ea59130ae074fa3abe27de8cbf71d91": 2,
+        "45235d6b6bed476885ad4ae06f63c9ad": 2,
+        "75844c5980bb4094beb1dc6c0a3a9856": 1
+      },
+      "BOM": [],
+      "updateTime": 1617654985,
+      "createTime": 1617654985,
+      "histories": [],
+      "created_at": "2021-04-05 23:36:25",
+      "updated_at": "2021-04-05 23:36:25"
+    }
+  ],
+  "sort": [
+    "81f1dc05e9ab7318cb79dd76869751fb",
+    "41b54a086466bccc3c6253e3be657795"
+  ],
+  "title": "ESP32_fire",
+  "foldername": "ESP32_fire",
+  "schfilename": "ESP32_fire.json",
+  "schfilemtime": 1620561390046
+}
