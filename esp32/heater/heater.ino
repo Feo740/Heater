@@ -13,6 +13,12 @@ extern "C" {
 #include "freertos/FreeRTOS.h"
 #include "freertos/timers.h"
 }
+#include <Adafruit_ADS1X15.h>
+#include <Wire.h>
+
+Adafruit_ADS1115 ads;  /* Use this for the 16-bit version */
+int16_t adc0, adc1, adc2, adc3;
+float volts0, volts1, volts2, volts3;
 
 //char ssid_orig[] = "MikroTik-1EA2D2";
 //const char* password = "ferrari220";
@@ -48,12 +54,15 @@ char air_buffer[41]; // Массив для хранения символов и
 #define FLAMESENSORPIN 35 //вход датчика пламени
 #define OILLOWSENSOREPIN 34 // вход низкого уровня датчика масла в бачке
 #define OILHIGHSENSOREPIN 13 // вход высокого уровня датчика масла в бачке
-#define OILPUMPPIN 23 //выход включения насоса масла
+#define OILPUMPPIN 22 //выход включения насоса масла
 #define SPARKLEPIN 21 // выход подключения искры
 //#define CURRENT_SENSOR 33 // Вход датчика тока
 
 #define MQTT_HOST IPAddress(212, 92, 170, 246) //адрес сервера MQTT
 #define MQTT_PORT 1883 // порт сервера MQTT
+
+#define I2C_SDA 26
+#define I2C_SCL 33
 OneWire ds(15); // порт для подключения датчика температуры
 
 
@@ -405,6 +414,11 @@ void SD_connect (){
 }
 
 void setup(void) {
+
+
+Wire.begin(I2C_SDA, I2C_SCL);
+ads.begin(); //работа с ацп модулем
+
      // Конфигурируем АЦП модуль 1
    //adc1_config_width(ADC_WIDTH_BIT_12);
    //adc1_config_channel_atten(ADC1_CHANNEL_5,ADC_ATTEN_DB_11); // Используем канал на 33 пине, задаем максимальное ослабление сигнала 11 Db
@@ -961,6 +975,7 @@ void loop(void) {
 if ((millis() - blink1) >= period_blink1) {
   blink1 = millis();
   //current();
+
   if (var_blink1 == 0){
     var_blink1 = 1;
     String var = String(var_blink1);
@@ -1264,6 +1279,7 @@ if ((millis() - blink1) >= period_blink1) {
 
     //кнопка "запросить номер датчика температуры"
     if (SW_var.equals("number18b20")) {
+     temp_number_reading="";
      read_vin_18b20(addr1);
      for (int i=0;i<8;i++){
      temp_number_reading += "0x";
@@ -1397,6 +1413,25 @@ packetIdPub2 = mqttClient.publish("esp32/DHT_Temp", 1, true, var.c_str());
   if ((millis() - fuel_sensor) >= period_fuel_sensor) {
     fuel_sensor = millis();
     fuellevel();
+    //почитаем датчик ацп
+
+    adc0 = ads.readADC_SingleEnded(0);
+    adc1 = ads.readADC_SingleEnded(1);
+    adc2 = ads.readADC_SingleEnded(2);
+    adc3 = ads.readADC_SingleEnded(3);
+
+    volts0 = ads.computeVolts(adc0);
+    volts1 = ads.computeVolts(adc1);
+    volts2 = ads.computeVolts(adc2);
+    volts3 = ads.computeVolts(adc3);
+
+    Serial.println("-----------------------------------------------------------");
+    Serial.print("AIN0: "); Serial.print(adc0); Serial.print("  "); Serial.print(volts0); Serial.println("V");
+    Serial.print("AIN1: "); Serial.print(adc1); Serial.print("  "); Serial.print(volts1); Serial.println("V");
+    Serial.print("AIN2: "); Serial.print(adc2); Serial.print("  "); Serial.print(volts2); Serial.println("V");
+    Serial.print("AIN3: "); Serial.print(adc3); Serial.print("  "); Serial.print(volts3); Serial.println("V");
+
+    //закончили прочитать
   }
 
   //проверка исправности датчика топлива по вермени подкачки
