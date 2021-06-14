@@ -1,3 +1,4 @@
+/**@file heater.ino */
 #include <driver/adc.h>
 #include <ETH.h>
 #include <WiFi.h>
@@ -16,23 +17,18 @@ extern "C" {
 #include <Adafruit_ADS1X15.h>
 #include <Wire.h>
 
-Adafruit_ADS1115 ads;  /* Use this for the 16-bit version */
+Adafruit_ADS1115 ads; ///< переменная для I2C модуля АЦП
 int16_t adc0, adc1, adc2, adc3;
 float volts0, volts1, volts2, volts3;
 
-//char ssid_orig[] = "MikroTik-1EA2D2";
-//const char* password = "ferrari220";
-
-// переменные для работы с флешкартой
-
 //работа с именем сети и паролем
-char my_buffer[41]; // Массив для хранения символов из файлов конфигураций
-char pass_buffer[25]; // Массив для хранения символов пароля сети
-char net_buffer[25]; // Массив для хранения символов имени сети
-char oil_buffer[41]; // Массив для хранения символов из файлов конфигураций
-char in_water_buffer[41]; // Массив для хранения символов из файлов конфигураций
-char out_water_buffer[41]; // Массив для хранения символов из файлов конфигураций
-char air_buffer[41]; // Массив для хранения символов из файлов конфигураций
+char my_buffer[41]; ///< Массив для хранения символов из файлов конфигураций
+char pass_buffer[25]; ///< Массив для хранения символов пароля сети
+char net_buffer[25]; ///< Массив для хранения символов имени сети
+char oil_buffer[41]; ///< Массив для хранения символов из файлов конфигураций
+char in_water_buffer[41]; ///< Массив для хранения символов из файлов конфигураций
+char out_water_buffer[41]; ///< Массив для хранения символов из файлов конфигураций
+char air_buffer[41]; ///< Массив для хранения символов из файлов конфигураций
 
  char* ssid = &net_buffer[0];
  char* password = &pass_buffer[0];
@@ -40,36 +36,34 @@ char air_buffer[41]; // Массив для хранения символов и
  char* air_number_18b20 = &air_buffer[0];
 
 
-
-
-//Свободные пины:  D4, D5, D18, D19, D22, D2, D26
-#define EEPROM_SIZE 10 //количество байтов, к которым хотим получить доступ в EEPROM
-#define DHTPIN 14     // контакт, к которому подключается DHT
-#define AIRPIN 27     //контакт датчика подачи воздуха
-#define OILHEATPIN 32 // контакт включения подогревателя масла
-#define STARTPIN 12  // контакт пуска горелки ЗАМЕНИТЬ
-#define AIRFLOWPIN 25 // контакт поддува вторичного воздуха
-#define DHTTYPE DHT22   // DHT 11
+#define EEPROM_SIZE 10 ///<количество байтов, к которым хотим получить доступ в EEPROM
+#define DHTPIN 14     ///< контакт, к которому подключается DHT
+#define AIRPIN 27     ///< контакт датчика подачи воздуха
+#define OILHEATPIN 32 ///< контакт включения подогревателя масла
+#define STARTPIN 12  ///<  контакт пуска горелки ЗАМЕНИТЬ
+#define AIRFLOWPIN 25 ///< контакт поддува вторичного воздуха
+#define DHTTYPE DHT22   ///<  DHT 11
 //#define ONE_WIRE_BUS 15 //контакт датчика 18б20
-#define FLAMESENSORPIN 35 //вход датчика пламени
-#define OILLOWSENSOREPIN 34 // вход низкого уровня датчика масла в бачке
-#define OILHIGHSENSOREPIN 13 // вход высокого уровня датчика масла в бачке
-#define OILPUMPPIN 22 //выход включения насоса масла
-#define SPARKLEPIN 21 // выход подключения искры
-//#define CURRENT_SENSOR 33 // Вход датчика тока
-
-#define MQTT_HOST IPAddress(212, 92, 170, 246) //адрес сервера MQTT
-#define MQTT_PORT 1883 // порт сервера MQTT
-
-#define I2C_SDA 26
-#define I2C_SCL 33
-OneWire ds(15); // порт для подключения датчика температуры
+#define FLAMESENSORPIN 35 ///< контакт входа датчика пламени
+#define OILLOWSENSOREPIN 34 ///< контакт входа низкого уровня датчика масла в бачке
+#define OILHIGHSENSOREPIN 13 ///< контакт входа высокого уровня датчика масла в бачке
+#define OILPUMPPIN 22 ///< контакт выхода включения насоса масла
+#define SPARKLEPIN 21 ///< контакт выхода подключения генератора искры
 
 
+#define MQTT_HOST IPAddress(212, 92, 170, 246) ///< адрес сервера MQTT
+#define MQTT_PORT 1883 ///< порт сервера MQTT
+
+#define I2C_SDA 26 ///< контакт sda линии порта I2C
+#define I2C_SCL 33 ///< контакт scl линии порта I2C
+#define TEMPSENSORPIN 15 ///< контакт для подключения датчика температуры
+OneWire ds(TEMPSENSORPIN);
 
 
-// создаем объекты для управления MQTT-клиентом:
-//Создаем объект для управления MQTT-клиентом и таймеры, которые понадобятся для повторного подключения к MQTT-брокеру или WiFi-роутеру, если связь вдруг оборвется.
+
+
+/// создаем объекты для управления MQTT-клиентом:
+///Создаем объект для управления MQTT-клиентом и таймеры, которые понадобятся для повторного подключения к MQTT-брокеру или WiFi-роутеру, если связь вдруг оборвется.
 AsyncMqttClient mqttClient;
 TimerHandle_t mqttReconnectTimer;
 TimerHandle_t wifiReconnectTimer;
@@ -105,84 +99,87 @@ String SW_var_temp_num = "";
 
 // Нам нужно задать период таймера В МИЛЛИСЕКУНДАХ
 // дней*(24 часов в сутках)*(60 минут в часе)*(60 секунд в минуте)*(1000 миллисекунд в секунде)
-unsigned int period_DHT22 = 60000; // его же используем для обновления IP
-unsigned int period_18b20_1 = 30000;
-unsigned int period_18b20_2 = 25000;
-unsigned int period_18b20_3 = 20000;
-unsigned int period_18b20_4 = 23000;
-unsigned int period_flame_sensor = 2000;
-unsigned int period_fuel_sensor = 10000;
-unsigned int period_blink1 = 2000; // задаем период мигания светодиода пинга
-unsigned int period_fuel_tank = 0; // задаем период заполнения бака топлива
-unsigned int period_air_before = 5000; // задаем период длительности продувки печи при старте
-unsigned int period_air_after = 5000; // задаем период длительности продувки печи при останове
-unsigned int period_air_ing = 5000; // задаем период от подачи воздуха до подачи искры
-unsigned int period_sparkle_ing = 2000; // задаем период подачи искры
-unsigned int period_between_sparkle_ing = 2000; // период между подачами искры
-unsigned int period_18b20_read = 500; // задержка для преобразования датчика 18b20
+unsigned int period_DHT22 = 60000;  ///< таймер для датчика влажности
+unsigned int period_18b20_1 = 30000;  ///< таймер для первого датчика температуры
+unsigned int period_18b20_2 = 25000;  ///< таймер для второго датчика температуры
+unsigned int period_18b20_3 = 20000;  ///< таймер для третьего датчика температуры
+unsigned int period_18b20_4 = 23000;  ///< таймер для четвертого датчика температуры
+unsigned int period_flame_sensor = 2000;  ///< таймер для датчика пламени
+unsigned int period_fuel_sensor = 10000;  ///< таймер для датчика уровня топлива
+unsigned int period_blink1 = 2000;  ///< таймер для светодиода - пинг
+unsigned int period_fuel_tank = 0;  ///< таймер для наполнения бака по времени
+unsigned int period_air_before = 5000;  ///< таймер для продувки печи перед стартом
+unsigned int period_air_after = 5000; ///< таймер для продувки печи при останове
+unsigned int period_air_ing = 5000; ///< таймер для диапазона меж продувкой и подачей искры
+unsigned int period_sparkle_ing = 2000; ///< таймер продолжительности подачи искры
+unsigned int period_between_sparkle_ing = 2000; ///< таймер периода между подачами искры
+unsigned int period_18b20_read = 500; ///< таймер ожидания преобразования в датчике 18b20
 
 //переменные счетчиков
-unsigned long dht22 = 0;
-unsigned long blink1;
-unsigned long T18b20_1 = 0;
-unsigned long T18b20_2 = 0;
-unsigned long T18b20_3 = 0;
-unsigned long T18b20_4 = 0;
-unsigned long flame_sensor = 0;
-unsigned long fuel_sensor = 0;
-unsigned long fuel_tank_var = 0;
-unsigned long air_before = 0;
-unsigned long air_after = 0;
-unsigned long air_ing = 0;
-unsigned long sparkle_ing = 0;
-unsigned long between_sparkle_ing = 0;
-unsigned long read_18b20 = 0;
+unsigned long dht22 = 0; ///< Техническая переменная счетчика таймера
+unsigned long blink1; ///< Техническая переменная счетчика таймера
+unsigned long T18b20_1 = 0; ///< Техническая переменная счетчика таймера
+unsigned long T18b20_2 = 0; ///< Техническая переменная счетчика таймера
+unsigned long T18b20_3 = 0; ///< Техническая переменная счетчика таймера
+unsigned long T18b20_4 = 0; ///< Техническая переменная счетчика таймера
+unsigned long flame_sensor = 0; ///< Техническая переменная счетчика таймера
+unsigned long fuel_sensor = 0;  ///< Техническая переменная счетчика таймера
+unsigned long fuel_tank_var = 0;  ///< Техническая переменная счетчика таймера
+unsigned long air_before = 0; ///< Техническая переменная счетчика таймера
+unsigned long air_after = 0;  ///< Техническая переменная счетчика таймера
+unsigned long air_ing = 0;  ///< Техническая переменная счетчика таймера
+unsigned long sparkle_ing = 0;  ///< Техническая переменная счетчика таймера
+unsigned long between_sparkle_ing = 0;  ///< Техническая переменная счетчика таймера
+unsigned long read_18b20 = 0; ///< Техническая переменная счетчика таймера
 
-byte x = 0; // Флаг состояния системы 0-стоп, 1-работа, 2 - авария
-byte x1 = 0; // флаг состояния горелки 0 - не горит, 1 - горит,  2 - запуск, 3 - останов
-byte y = 0; // Флаг состояния автоматического режима 0-ручной, 1-автоматический
-byte a = 0; // Флаг состояния канала первичного воздуха 0-закрыт, 1-открыт
-byte oh = 0; // Флаг состояния канала подогрева масла 0-выключен, 1-включен
-byte af = 0; // флаг состояния канала вторичного воздуха 0-выключен, 1-включен
-byte st = 0; // флаг состояния выключателя горелки 0-выключен, 1 - включен
-byte fs1 = 0; // переменная состояния канала датчика пламени
-byte oil = 0; // флаг состояния насоса подкачки масла 0-выключен, 1-включен
-byte bl1 = 0; // флаг состояния датчика уровня масла в бачке 0-пустой, 1- полный 2-средний 3-неисправный
-byte sp = 0; // флаг состояния подачи искры
-byte sparkle_item = 0; // счетчик еоличества попыток запуска горелки
-byte var_blink1 = 0; // флаг для мигания светодиодом
-byte error_flag = 0; // переменная кода ошибки 0-нет, 1-ошибка наполнения топливом
+byte x = 0; ///< Флаг состояния системы 0-стоп, 1-работа, 2 - авария
+byte x1 = 0;  ///< флаг состояния горелки 0 - не горит, 1 - горит,  2 - запуск, 3 - останов
+byte y = 0; ///< Флаг состояния автоматического режима 0-ручной, 1-автоматический
+byte a = 0; ///< Флаг состояния канала первичного воздуха 0-закрыт, 1-открыт
+byte oh = 0; ///< Флаг состояния канала подогрева масла 0-выключен, 1-включен
+byte af = 0; ///< флаг состояния канала вторичного воздуха 0-выключен, 1-включен
+byte st = 0; ///< флаг состояния выключателя горелки 0-выключен, 1 - включен
+byte fs1 = 0; ///< переменная состояния канала датчика пламени
+byte oil = 0; ///< флаг состояния насоса подкачки масла 0-выключен, 1-включен
+byte bl1 = 0; ///< флаг состояния датчика уровня масла в бачке 0-пустой, 1- полный 2-средний 3-неисправный
+byte sp = 0; ///< флаг состояния подачи искры
+byte sparkle_item = 0; ///< счетчик еоличества попыток запуска горелки
+byte var_blink1 = 0; ///< флаг для мигания светодиодом
+byte error_flag = 0; ///< переменная кода ошибки 0-нет, 1-ошибка наполнения топливом
 
 
-float fuel_tank = 0; // время заправки бака масла для епром
-float oil_temp_hi; //температура масла для выключения тена
-float oil_temp_low;// температура масла для включения тена
-float water_temp_hi; //температура масла для выключения тена
-float water_temp_low;// температура масла для включения тена
+float fuel_tank = 0; ///< переменная хранения значения времени заправки бака масла для eeprom
+float oil_temp_hi; ///< переменная хранения значения максимальной температуры масла для выключения тена
+float oil_temp_low; ///< переменная хранения значения минимальной температуры масла для выключения тена
+float water_temp_hi;  ///< переменная хранения значения максимальной температуры антифриза в системе
+float water_temp_low; ///< переменная хранения значения минимальной температуры антифриза в системе
 
-int mVperAmp = 100; // use 100 for 20A Module and 66 for 30A Module
+int mVperAmp = 100; ///< use 100 for 20A Module and 66 for 30A Module
 double Voltage = 0;
 double VRMS = 0;
 double AmpsRMS = 0;
 
-String fuel_tank_txt; // предельное время наполения бака масла используется для MQTT сообщений
-String period_air_before_txt; // продувка котла перед стартом используется для MQTT сообщений
-String period_air_after_txt; // продувка котла после останова используется для MQTT сообщений
-String period_air_ing_txt; // время длительности первичного впрыска топлива перед стартом используется для MQTT сообщений
-String period_between_sparkle_ing_txt; // период между искрами используется для MQTT сообщений
-String period_sparkle_ing_txt; // период длительности искры используется для MQTT сообщений
-String oil_temp_hi_txt; //температура масла для выключения тена используется для MQTT сообщений
-String oil_temp_low_txt;// температура масла для включения тена используется для MQTT сообщений
-String water_temp_hi_txt; //температура масла для выключения тена используется для MQTT сообщений
-String water_temp_low_txt;// температура масла для включения тена используется для MQTT сообщений
+String fuel_tank_txt; ///< длительность периода наполения бака масла используется для MQTT сообщений
+String period_air_before_txt; ///< длительность периода продувки котла перед стартом используется для MQTT сообщений
+String period_air_after_txt; ///< длительность периода продувки котла после останова используется для MQTT сообщений
+String period_air_ing_txt; ///< длительность периода первичного впрыска топлива перед стартом используется для MQTT сообщений
+String period_between_sparkle_ing_txt; ///< длительность периода между искрами используется для MQTT сообщений
+String period_sparkle_ing_txt; ///< длительность периода искры используется для MQTT сообщений
+String oil_temp_hi_txt; ///< значение температуры масла для выключения тена используется для MQTT сообщений
+String oil_temp_low_txt;  ///< значение температуры масла для включения тена используется для MQTT сообщений
+String water_temp_hi_txt; ///< значение температуры масла для выключения тена используется для MQTT сообщений
+String water_temp_low_txt;  ///< значение температуры масла для включения тена используется для MQTT сообщений
 float temp_sensor = 0;
 String var;
-byte olsp = 0; // флаг датчика топлива
-byte ohsp = 0; // флаг датчика топлива
-byte sd_con = 0; //флаг подключенной флешки
+byte olsp = 0; ///< флаг датчика топлива нижний порог
+byte ohsp = 0; ///< флаг датчика топлива верхний порог
+byte sd_con = 0; ///< флаг подключенной флешки
 
 
-// функция вывода листа папок с флешки
+/*!
+ \brief функция вывода листа папок с флешки
+  Делаем вывод списка папок на флешке
+ */
 void listDir(fs::FS &fs, const char * dirname, uint8_t levels){
     Serial.printf("Listing directory: %s\n", dirname);
 
@@ -214,7 +211,10 @@ void listDir(fs::FS &fs, const char * dirname, uint8_t levels){
     }
 }
 
-//функция чтения файлов конфигураций
+/*!
+ \brief функция чтения файлов конфигураций
+  читаем файл конигураций
+ */
 void readFile(fs::FS &fs, const char * path){
     Serial.printf("Reading file: %s\n", path);
 
@@ -233,7 +233,10 @@ void readFile(fs::FS &fs, const char * path){
         file.close();
 }
 
-//функция записи в файл конфигруции
+/*!
+ \brief функция записи в файл конфигураций
+  пишем в файл конигураций
+ */
 void writeFile(fs::FS &fs, const char * path, const char * message){
     Serial.printf("Writing file: %s\n", path);
 
@@ -252,7 +255,10 @@ void writeFile(fs::FS &fs, const char * path, const char * message){
 
 
 
-//Функция подключения к WiFi
+/*!
+ \brief функция подключения к сети wifi
+  осуществляет подключение к сети.
+ */
 void connectToWifi() {
   Serial.println("Connecting to Wi-Fi...");
              //  "Подключаемся к WiFi..."
@@ -352,33 +358,6 @@ void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties 
     }
   }
 }
-/*
-float getVPP(){
-  float result;
-  int readValue;             //value read from the sensor
-  int maxValue = 0;          // store max value here
-  int minValue = 4096;          // store min value here
-
-  uint32_t start_time = millis();
-   while((millis()-start_time) < 40) //sample
-   {
-    readValue = adc1_get_raw(ADC1_CHANNEL_5);
-       // see if you have a new maxValue
-       if (readValue > maxValue)
-      {
-           //record the maximum sensor value
-           maxValue = readValue;
-       }
-       if (readValue < minValue)
-       {
-           //record the minimum sensor value
-           minValue = readValue;
-       }
-   }
-   result = ((maxValue - minValue) * 2.5)/4096.0;
-   return result;
-
-} */
 
 // функция проверяет подключена ли sd-карточка
 void SD_connect (){
@@ -413,17 +392,27 @@ void SD_connect (){
       Serial.printf("SD Card Size: %lluMB\n", cardSize);
 }
 
+/*!
+ \brief функция первичной конфигурации системы
+  \details Функция выполняется один раз и определяет общую стартовую конфигурацию системы при запуске.
+
+  включаем интерфейс I2C_SC
+  \snippet heater.ino 1
+  инициализация EEPROM с определенным размером
+  \snippet heater.ino 2
+ */
 void setup(void) {
 
-
+//![1]
 Wire.begin(I2C_SDA, I2C_SCL);
+//![1]
+
 ads.begin(); //работа с ацп модулем
 
-     // Конфигурируем АЦП модуль 1
-   //adc1_config_width(ADC_WIDTH_BIT_12);
-   //adc1_config_channel_atten(ADC1_CHANNEL_5,ADC_ATTEN_DB_11); // Используем канал на 33 пине, задаем максимальное ослабление сигнала 11 Db
   // чтение настроек с флэш-памяти
-  EEPROM.begin(EEPROM_SIZE); //инициализация EEPROM с определенным размером
+  //![2]
+  EEPROM.begin(EEPROM_SIZE); // инициализация EEPROM с определенным размером
+//![2]
   oil_temp_hi = EEPROM.read(1); // читаем последнее значение из флеш-памяти
   oil_temp_low = EEPROM.read(0); // читаем последнее значение из флеш-памяти
   water_temp_hi = EEPROM.read(2); // читаем последнее значение из флеш-памяти
@@ -453,7 +442,6 @@ ads.begin(); //работа с ацп модулем
   pinMode(OILLOWSENSOREPIN, INPUT);
   pinMode(OILHIGHSENSOREPIN, INPUT);
   pinMode(SPARKLEPIN, OUTPUT);
-  //pinMode(CURRENT_SENSOR, INPUT);
   digitalWrite(SPARKLEPIN, LOW);
   digitalWrite(OILPUMPPIN, LOW);
   digitalWrite(AIRPIN, LOW);
@@ -578,7 +566,11 @@ ads.begin(); //работа с ацп модулем
 }
 
 
-//перевод системы в начальное состояние
+/*!
+ \brief функция инициализации экрана в стартовое состояние
+  \details Функция выполняется один раз при старте и обеспечивает соответствие
+  отображения информации на экране сотстоянию системы
+   */
 void obnulenie() {
   //Лампочки в красный свет
   Serial.print("page1.p1.pic=4\xFF\xFF\xFF");
@@ -637,7 +629,11 @@ void obnulenie() {
   fuellevel();
 }
 
-//функция проверки уробня топлива в баке
+/*!
+ \brief функция проверки уровня топлива в баке.
+ Производит опрос датчиков топлива, выводит состояние датчиков на экран.
+
+   */
 void fuellevel() {
   olsp = digitalRead(OILLOWSENSOREPIN); // считываем нижнй концевик датчика
   ohsp = digitalRead(OILHIGHSENSOREPIN);// считываем верхний концевик датчика
@@ -673,7 +669,12 @@ void fuellevel() {
   }
 }
 
-// функция отображения информации в строках состояния
+/*!
+ \brief функция отображения информации в строках состояния на экране
+ \param [in] k  в функцию передаем содержимое строки для отображения
+ \param [in] k1 в функцию передаем адрес текстовой ячейки в мониторе
+ \details Передаем содержимое строки и адрес ячейки, фунцкия преобразует информацию в понятный для монитора формат и передает.
+    */
 void indikacia(String k, int k1) {
 
   String stringVar = String(k1);
@@ -683,6 +684,12 @@ void indikacia(String k, int k1) {
 
 }
 
+/*!
+ \brief реализация процедуры запуска горелки
+  \details запуска горелки включает в себя процедуры проверки состояния горелки. выполнение подготовки к старту.
+  Проверяется уровень топлива, если требуется, доливается. Проверяется температура топлива, если требуется, подогревается.
+  Управление поддувом, искрообразованием, контроль результата запуска по датчику пламени.
+   */
 void zapusk() {
   //1й шаг проверка уровня масла
   if (bl1 == 0 && x != 2) { // если уровень масла минимум и система не в состоянии "Авария"
@@ -795,12 +802,20 @@ void zapusk() {
 
 }
 
+/*!
+ \brief обработка ситуации неудачного старта горелки
+  \details Если попытки поджига не привели к старту горелки система переходит в аварияный режиме
+   */
 void fireError() {
   indikacia("error fire", 16);
   x = 2; // флаг горелки в режим "авария"
   ostanov();
 }
 
+/*!
+ \brief реализация процедуры останова горелки
+  \details Функция выполняется один раз при останове горелки и обеспечивает поэтапную процедуру корректного останова горелки
+   */
 void ostanov() {
   // выключаем клапан воздуха
   a = 0;
@@ -818,15 +833,14 @@ void ostanov() {
   if (fs1 == 1) {                             // если пламени нет, система остановилась в штатном режиме
     x1 = 0;     // состояние горелки "не горит"
     String var = String("page0.t15.txt=\"") + String("fire off") + String("\"") + String("\xFF\xFF\xFF");
-    Serial.print(var); //индикация на дисплее "горение"
-  //  //Serial.print("ref page0\xFF\xFF\xFF"); // обновить страницу
+    Serial.print(var); //индикация на дисплее "горение стоп"
     x = 0;    // состояние системы "стоп"
     y = 0;    // режим горелки "ручной"
     obnulenie();
 
   } else {
     String var = String("page0.t15.txt=\"") + String("error fire off") + String("\"") + String("\xFF\xFF\xFF");
-    Serial.print(var); //индикация на дисплее "горение"
+    Serial.print(var); //индикация на дисплее "горение не остановлено - ошибка"
     ////Serial.print("ref page0\xFF\xFF\xFF"); // обновить страницу
     x = 2; // флаг горелки в режим "авария"
   }
@@ -853,6 +867,11 @@ void ostanov() {
   x = 0;
 }
 
+/*!
+ \brief функция включения системы
+  \details Функция обрабатывает ситуацию получения от монитора команды
+  тумблер "все вкл" от дисплея
+   */
 void All_on(){
        x = 1;
       Serial.print("page1.p7.pic=5\xFF\xFF\xFF");
@@ -864,7 +883,11 @@ void All_on(){
       uint16_t packetIdPub2 = mqttClient.publish("esp32/ALL", 1, true, var.c_str());
   }
 
-
+  /*!
+   \brief функция выключения системы
+    \details Функция обрабатывает ситуацию получения от монитора команды
+    тумблер "все выкл" от дисплея
+     */
 void All_off(){
         if (x1 == 1) {
         ostanov();
@@ -881,20 +904,12 @@ void All_off(){
         obnulenie();
       }
   }
-/*
-void current(){
-Voltage = getVPP();
-VRMS = (Voltage/2);// *0.707;
-AmpsRMS = (VRMS * 1000)/mVperAmp;
-if (AmpsRMS < 0.5){
-  AmpsRMS = 0;
-}
-String var = String(AmpsRMS, 2);
-  // публикуем MQTT-сообщение в топике «esp32/current»
-    uint16_t packetIdPub2 = mqttClient.publish("esp32/current", 1, true, var.c_str());
-  }  */
 
-// функция чтения  температуры с датчика 18b20
+  /*!
+   \brief функция включения системы
+    \details Функция обрабатывает ситуацию получения от монитора команды
+    тумблер "все вкл" от дисплея
+     */
 void Read_18b20(byte addr[8], int t, byte flag){
   //переменные для датчиков температуры
   byte i;
@@ -964,7 +979,11 @@ void Read_18b20(byte addr[8], int t, byte flag){
 }
 }
 
-//функция возвращает массив  - адрес подключенного датчика температуры
+/*!
+ \brief функция определения адреса датчика температуры.
+  \details Функция возвращает массив - адрес подключенного устройства. Для
+  корректной работы должен быть подключен только один датчик.
+   */
 void read_vin_18b20(byte addr[8]){
   ds.search(addr);
   ds.reset_search();
@@ -972,10 +991,9 @@ void read_vin_18b20(byte addr[8]){
 
 void loop(void) {
 
+// пинг проверки корректной работы системы
 if ((millis() - blink1) >= period_blink1) {
   blink1 = millis();
-  //current();
-
   if (var_blink1 == 0){
     var_blink1 = 1;
     String var = String(var_blink1);
@@ -1301,7 +1319,7 @@ if ((millis() - blink1) >= period_blink1) {
         }*/
       }
 
-      if (SW_var.equals("battery")){
+    if (SW_var.equals("battery")){
           unsigned char* buf = new unsigned char[100];
           temp_number_reading.getBytes(buf, 100, 0);
           const char *str2 = (const char*)buf;
@@ -1313,7 +1331,7 @@ if ((millis() - blink1) >= period_blink1) {
           }*/
         }
 
-        if (SW_var.equals("obratka")){
+    if (SW_var.equals("obratka")){
             unsigned char* buf = new unsigned char[100];
             temp_number_reading.getBytes(buf, 100, 0);
             const char *str2 = (const char*)buf;
@@ -1325,7 +1343,7 @@ if ((millis() - blink1) >= period_blink1) {
             }*/
           }
 
-          if (SW_var.equals("podacha")){
+    if (SW_var.equals("podacha")){
               unsigned char* buf = new unsigned char[100];
               temp_number_reading.getBytes(buf, 100, 0);
               const char *str2 = (const char*)buf;
@@ -1347,8 +1365,7 @@ if ((millis() - blink1) >= period_blink1) {
     delay(70);
     float t = dht.readTemperature();// считываем температуру в градусах Цельсия:
     delay(70);
-    //float f = dht.readTemperature(true);// считываем температуру в градусах Фаренгейта:
-    //delay(50);
+
     // проверяем, корректно ли прочитались данные,
     // и если нет, то выходим и пробуем снова:
     if (isnan(h) || isnan(t)) {
@@ -1367,6 +1384,7 @@ if ((millis() - blink1) >= period_blink1) {
       Serial.print(var4 + "\xFF\xFF\xFF");
       //Serial.println("ref page0\xFF\xFF\xFF");
     }
+
 // отправляем данные MQTT
 String var = String(h);
 uint16_t packetIdPub2 = mqttClient.publish("esp32/DHT_HUM", 1, true, var.c_str());
@@ -1442,6 +1460,7 @@ packetIdPub2 = mqttClient.publish("esp32/DHT_Temp", 1, true, var.c_str());
     digitalWrite(OILPUMPPIN, LOW); // Выключили насос подкачки
     x = 2;
     }
+
   //проверка уровня бачка на дозаправку
   if (bl1 == 0 && y == 1 && x == 1 && oil != 1) { // если режим системы - работа, уровень масла минимум, а режим при этом автоматический - подкачиваем.
     Serial.print("bt3.val=0\xFF\xFF\xFF"); // переводим тумблер "подкачка вкл"
@@ -1452,7 +1471,7 @@ packetIdPub2 = mqttClient.publish("esp32/DHT_Temp", 1, true, var.c_str());
   }
 
   //поддержка температуры масла
-    if (y == 1 && x == 1 && temp_sensor >= oil_temp_hi && oh != 0) {  // если в автоматическом режиме температура выше максимальной
+  if (y == 1 && x == 1 && temp_sensor >= oil_temp_hi && oh != 0) {  // если в автоматическом режиме температура выше максимальной
     Serial.print("page1.bt1.val=1\xFF\xFF\xFF"); // переводим тумблер "нагрев выкл"
     Serial.print("page1.p4.pic=4\xFF\xFF\xFF"); // лампочку гасим
     digitalWrite(OILHEATPIN, LOW); // выключаем тэн

@@ -1,0 +1,787 @@
+\hypertarget{heater_8ino}{}\doxysection{Файл C\+:/heater/esp32/heater/heater.ino}
+\label{heater_8ino}\index{C:/heater/esp32/heater/heater.ino@{C:/heater/esp32/heater/heater.ino}}
+{\ttfamily \#include $<$driver/adc.\+h$>$}\newline
+{\ttfamily \#include $<$ETH.\+h$>$}\newline
+{\ttfamily \#include $<$Wi\+Fi.\+h$>$}\newline
+{\ttfamily \#include \char`\"{}DHT.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}One\+Wire.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}EEPROM.\+h\char`\"{}}\newline
+{\ttfamily \#include $<$Async\+Mqtt\+Client.\+h$>$}\newline
+{\ttfamily \#include \char`\"{}FS.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}SD.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}SPI.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}freertos/\+Free\+RTOS.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}freertos/timers.\+h\char`\"{}}\newline
+{\ttfamily \#include $<$Adafruit\+\_\+\+ADS1\+X15.\+h$>$}\newline
+{\ttfamily \#include $<$Wire.\+h$>$}\newline
+\doxysubsection*{Макросы}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{heater_8ino_ae3ef7bba113f663df6996f286b632a3f}\label{heater_8ino_ae3ef7bba113f663df6996f286b632a3f}} 
+\#define \mbox{\hyperlink{heater_8ino_ae3ef7bba113f663df6996f286b632a3f}{EEPROM\+\_\+\+SIZE}}~10
+\begin{DoxyCompactList}\small\item\em количество байтов, к которым хотим получить доступ в EEPROM. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a757bb4e2bff6148de6ef3989b32a0126}\label{heater_8ino_a757bb4e2bff6148de6ef3989b32a0126}} 
+\#define \mbox{\hyperlink{heater_8ino_a757bb4e2bff6148de6ef3989b32a0126}{DHTPIN}}~14
+\begin{DoxyCompactList}\small\item\em контакт, к которому подключается DHT. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a9e6cad9eddf70a102560a9629d9f5910}\label{heater_8ino_a9e6cad9eddf70a102560a9629d9f5910}} 
+\#define \mbox{\hyperlink{heater_8ino_a9e6cad9eddf70a102560a9629d9f5910}{AIRPIN}}~27
+\begin{DoxyCompactList}\small\item\em контакт датчика подачи воздуха \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_ac066d4c9884c14054597919f7f1bb9eb}\label{heater_8ino_ac066d4c9884c14054597919f7f1bb9eb}} 
+\#define \mbox{\hyperlink{heater_8ino_ac066d4c9884c14054597919f7f1bb9eb}{OILHEATPIN}}~32
+\begin{DoxyCompactList}\small\item\em контакт включения подогревателя масла \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a483bf322f1174ae333f28e7e504fcb8a}\label{heater_8ino_a483bf322f1174ae333f28e7e504fcb8a}} 
+\#define \mbox{\hyperlink{heater_8ino_a483bf322f1174ae333f28e7e504fcb8a}{STARTPIN}}~12
+\begin{DoxyCompactList}\small\item\em контакт пуска горелки ЗАМЕНИТЬ \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_addae15785914d6d4229b74249ef720bd}\label{heater_8ino_addae15785914d6d4229b74249ef720bd}} 
+\#define \mbox{\hyperlink{heater_8ino_addae15785914d6d4229b74249ef720bd}{AIRFLOWPIN}}~25
+\begin{DoxyCompactList}\small\item\em контакт поддува вторичного воздуха \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a2c509dba12bba99883a5be9341b7a0c5}\label{heater_8ino_a2c509dba12bba99883a5be9341b7a0c5}} 
+\#define \mbox{\hyperlink{heater_8ino_a2c509dba12bba99883a5be9341b7a0c5}{DHTTYPE}}~DHT22
+\begin{DoxyCompactList}\small\item\em DHT 11. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a67f135cff131ac0498d2032650804c9b}\label{heater_8ino_a67f135cff131ac0498d2032650804c9b}} 
+\#define \mbox{\hyperlink{heater_8ino_a67f135cff131ac0498d2032650804c9b}{FLAMESENSORPIN}}~35
+\begin{DoxyCompactList}\small\item\em контакт входа датчика пламени \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a0c4cd864bbbe74cb7e2a0c2e53072a00}\label{heater_8ino_a0c4cd864bbbe74cb7e2a0c2e53072a00}} 
+\#define \mbox{\hyperlink{heater_8ino_a0c4cd864bbbe74cb7e2a0c2e53072a00}{OILLOWSENSOREPIN}}~34
+\begin{DoxyCompactList}\small\item\em контакт входа низкого уровня датчика масла в бачке \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_ab5ee15857a6ea82986ebbce8bdb94078}\label{heater_8ino_ab5ee15857a6ea82986ebbce8bdb94078}} 
+\#define \mbox{\hyperlink{heater_8ino_ab5ee15857a6ea82986ebbce8bdb94078}{OILHIGHSENSOREPIN}}~13
+\begin{DoxyCompactList}\small\item\em контакт входа высокого уровня датчика масла в бачке \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a7124d36255920e918adbaf679c26597e}\label{heater_8ino_a7124d36255920e918adbaf679c26597e}} 
+\#define \mbox{\hyperlink{heater_8ino_a7124d36255920e918adbaf679c26597e}{OILPUMPPIN}}~22
+\begin{DoxyCompactList}\small\item\em контакт выхода включения насоса масла \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a80b78b8a6be9d1382872149acfdb863e}\label{heater_8ino_a80b78b8a6be9d1382872149acfdb863e}} 
+\#define \mbox{\hyperlink{heater_8ino_a80b78b8a6be9d1382872149acfdb863e}{SPARKLEPIN}}~21
+\begin{DoxyCompactList}\small\item\em контакт выхода подключения генератора искры \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a0b26496e970e561304bd542f701fe223}\label{heater_8ino_a0b26496e970e561304bd542f701fe223}} 
+\#define \mbox{\hyperlink{heater_8ino_a0b26496e970e561304bd542f701fe223}{MQTT\+\_\+\+HOST}}~IPAddress(212, 92, 170, 246)
+\begin{DoxyCompactList}\small\item\em адрес сервера MQTT. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_aa8632baff6bbb5004385998918f1e6bd}\label{heater_8ino_aa8632baff6bbb5004385998918f1e6bd}} 
+\#define \mbox{\hyperlink{heater_8ino_aa8632baff6bbb5004385998918f1e6bd}{MQTT\+\_\+\+PORT}}~1883
+\begin{DoxyCompactList}\small\item\em порт сервера MQTT. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a18aefd12ad84d4c33dc97923cb821e47}\label{heater_8ino_a18aefd12ad84d4c33dc97923cb821e47}} 
+\#define \mbox{\hyperlink{heater_8ino_a18aefd12ad84d4c33dc97923cb821e47}{I2\+C\+\_\+\+SDA}}~26
+\begin{DoxyCompactList}\small\item\em контакт sda линии порта I2C. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a212ca328a6409c98f8c3dfbbe1ba561d}\label{heater_8ino_a212ca328a6409c98f8c3dfbbe1ba561d}} 
+\#define \mbox{\hyperlink{heater_8ino_a212ca328a6409c98f8c3dfbbe1ba561d}{I2\+C\+\_\+\+SCL}}~33
+\begin{DoxyCompactList}\small\item\em контакт scl линии порта I2C. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a811c447ed5ffcfa1b9c266eb29d0cf7e}\label{heater_8ino_a811c447ed5ffcfa1b9c266eb29d0cf7e}} 
+\#define \mbox{\hyperlink{heater_8ino_a811c447ed5ffcfa1b9c266eb29d0cf7e}{TEMPSENSORPIN}}~15
+\begin{DoxyCompactList}\small\item\em контакт для подключения датчика температуры \end{DoxyCompactList}\end{DoxyCompactItemize}
+\doxysubsection*{Функции}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{heater_8ino_a3fbb6e24a4ad223bada2ae381efffdc7}\label{heater_8ino_a3fbb6e24a4ad223bada2ae381efffdc7}} 
+One\+Wire {\bfseries ds} (\mbox{\hyperlink{heater_8ino_a811c447ed5ffcfa1b9c266eb29d0cf7e}{TEMPSENSORPIN}})
+\item 
+\mbox{\Hypertarget{heater_8ino_ad7a1df263f6f823242a112ec11297434}\label{heater_8ino_ad7a1df263f6f823242a112ec11297434}} 
+DHT {\bfseries dht} (\mbox{\hyperlink{heater_8ino_a757bb4e2bff6148de6ef3989b32a0126}{DHTPIN}}, \mbox{\hyperlink{heater_8ino_a2c509dba12bba99883a5be9341b7a0c5}{DHTTYPE}})
+\item 
+\mbox{\Hypertarget{heater_8ino_a8841578fe91cace6206676f0e751cab5}\label{heater_8ino_a8841578fe91cace6206676f0e751cab5}} 
+void \mbox{\hyperlink{heater_8ino_a8841578fe91cace6206676f0e751cab5}{list\+Dir}} (fs\+::\+FS \&fs, const char $\ast$dirname, uint8\+\_\+t levels)
+\begin{DoxyCompactList}\small\item\em функция вывода листа папок с флешки Делаем вывод списка папок на флешке \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a39694d8c816730fe5b678b70afa424ed}\label{heater_8ino_a39694d8c816730fe5b678b70afa424ed}} 
+void \mbox{\hyperlink{heater_8ino_a39694d8c816730fe5b678b70afa424ed}{read\+File}} (fs\+::\+FS \&fs, const char $\ast$path)
+\begin{DoxyCompactList}\small\item\em функция чтения файлов конфигураций читаем файл конигураций \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_adfdfe491c3b951586aeba25a0b8ccf80}\label{heater_8ino_adfdfe491c3b951586aeba25a0b8ccf80}} 
+void \mbox{\hyperlink{heater_8ino_adfdfe491c3b951586aeba25a0b8ccf80}{write\+File}} (fs\+::\+FS \&fs, const char $\ast$path, const char $\ast$message)
+\begin{DoxyCompactList}\small\item\em функция записи в файл конфигураций пишем в файл конигураций \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_ad6afb32bbdf9918dca4c2b4de623ab06}\label{heater_8ino_ad6afb32bbdf9918dca4c2b4de623ab06}} 
+void \mbox{\hyperlink{heater_8ino_ad6afb32bbdf9918dca4c2b4de623ab06}{connect\+To\+Wifi}} ()
+\begin{DoxyCompactList}\small\item\em функция подключения к сети wifi осуществляет подключение к сети. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_ac135a6b07df751de3b862ad40fcf20f2}\label{heater_8ino_ac135a6b07df751de3b862ad40fcf20f2}} 
+void {\bfseries connect\+To\+Mqtt} ()
+\item 
+\mbox{\Hypertarget{heater_8ino_a10b56d9dc93ac9ae0a21dc96923b951a}\label{heater_8ino_a10b56d9dc93ac9ae0a21dc96923b951a}} 
+void {\bfseries Wi\+Fi\+Event} (Wi\+Fi\+Event\+\_\+t event)
+\item 
+\mbox{\Hypertarget{heater_8ino_ae5f8083f9b45df3ccfc8be53e8223507}\label{heater_8ino_ae5f8083f9b45df3ccfc8be53e8223507}} 
+void {\bfseries on\+Mqtt\+Connect} (bool session\+Present)
+\item 
+\mbox{\Hypertarget{heater_8ino_a316b5b831131e325e2ba4b022237886a}\label{heater_8ino_a316b5b831131e325e2ba4b022237886a}} 
+void {\bfseries on\+Mqtt\+Disconnect} (Async\+Mqtt\+Client\+Disconnect\+Reason reason)
+\item 
+\mbox{\Hypertarget{heater_8ino_a10aa2a8447d3e8853e376b996864d273}\label{heater_8ino_a10aa2a8447d3e8853e376b996864d273}} 
+void {\bfseries on\+Mqtt\+Subscribe} (uint16\+\_\+t packet\+Id, uint8\+\_\+t qos)
+\item 
+\mbox{\Hypertarget{heater_8ino_a53258f601ead3238415ba3a6d04ebe51}\label{heater_8ino_a53258f601ead3238415ba3a6d04ebe51}} 
+void {\bfseries on\+Mqtt\+Unsubscribe} (uint16\+\_\+t packet\+Id)
+\item 
+\mbox{\Hypertarget{heater_8ino_a40203d18ac0c6c290b3c0f9e0a212140}\label{heater_8ino_a40203d18ac0c6c290b3c0f9e0a212140}} 
+void {\bfseries on\+Mqtt\+Message} (char $\ast$topic, char $\ast$payload, Async\+Mqtt\+Client\+Message\+Properties properties, size\+\_\+t len, size\+\_\+t index, size\+\_\+t total)
+\item 
+\mbox{\Hypertarget{heater_8ino_a01a31477dcf1bfb21cf6269daca9d685}\label{heater_8ino_a01a31477dcf1bfb21cf6269daca9d685}} 
+void {\bfseries SD\+\_\+connect} ()
+\item 
+void \mbox{\hyperlink{heater_8ino_a7dfd9b79bc5a37d7df40207afbc5431f}{setup}} (void)
+\begin{DoxyCompactList}\small\item\em функция первичной конфигурации системы \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{heater_8ino_aef0db3b3e1fdec09928b07426cefaa0d}{obnulenie}} ()
+\begin{DoxyCompactList}\small\item\em функция инициализации экрана в стартовое состояние \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_abfdb595ee9147192f7a277262ff363e7}\label{heater_8ino_abfdb595ee9147192f7a277262ff363e7}} 
+void \mbox{\hyperlink{heater_8ino_abfdb595ee9147192f7a277262ff363e7}{fuellevel}} ()
+\begin{DoxyCompactList}\small\item\em функция проверки уровня топлива в баке. Производит опрос датчиков топлива, выводит состояние датчиков на экран. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{heater_8ino_affcd512c3a156f26c390b7c16f393c3d}{indikacia}} (String k, int k1)
+\begin{DoxyCompactList}\small\item\em функция отображения информации в строках состояния на экране \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a67f62815fd5b17bfedc5a4f9099a7ef4}\label{heater_8ino_a67f62815fd5b17bfedc5a4f9099a7ef4}} 
+void {\bfseries zapusk} ()
+\item 
+\mbox{\Hypertarget{heater_8ino_aeb8332d034954e03d6de07cdcccd0f0f}\label{heater_8ino_aeb8332d034954e03d6de07cdcccd0f0f}} 
+void {\bfseries fire\+Error} ()
+\item 
+\mbox{\Hypertarget{heater_8ino_a402c0941a25d63277067830dc9c897d6}\label{heater_8ino_a402c0941a25d63277067830dc9c897d6}} 
+void {\bfseries ostanov} ()
+\item 
+\mbox{\Hypertarget{heater_8ino_a90b9a356f8258bb78720799695c05b25}\label{heater_8ino_a90b9a356f8258bb78720799695c05b25}} 
+void {\bfseries All\+\_\+on} ()
+\item 
+\mbox{\Hypertarget{heater_8ino_a0a4b010b435f637d5b12b931c1266278}\label{heater_8ino_a0a4b010b435f637d5b12b931c1266278}} 
+void {\bfseries All\+\_\+off} ()
+\item 
+\mbox{\Hypertarget{heater_8ino_aaed980ee53b91b3056a2f480d9388b0f}\label{heater_8ino_aaed980ee53b91b3056a2f480d9388b0f}} 
+void {\bfseries Read\+\_\+18b20} (byte addr\mbox{[}8\mbox{]}, int t, byte flag)
+\item 
+\mbox{\Hypertarget{heater_8ino_a996d6eae84b20596458fb319b9a59ffd}\label{heater_8ino_a996d6eae84b20596458fb319b9a59ffd}} 
+void {\bfseries read\+\_\+vin\+\_\+18b20} (byte addr\mbox{[}8\mbox{]})
+\item 
+\mbox{\Hypertarget{heater_8ino_a0b33edabd7f1c4e4a0bf32c67269be2f}\label{heater_8ino_a0b33edabd7f1c4e4a0bf32c67269be2f}} 
+void {\bfseries loop} (void)
+\end{DoxyCompactItemize}
+\doxysubsection*{Переменные}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{heater_8ino_a951ac31de71c2bf701a13e5f233fc6d8}\label{heater_8ino_a951ac31de71c2bf701a13e5f233fc6d8}} 
+Adafruit\+\_\+\+ADS1115 \mbox{\hyperlink{heater_8ino_a951ac31de71c2bf701a13e5f233fc6d8}{ads}}
+\begin{DoxyCompactList}\small\item\em переменная для I2C модуля АЦП \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a3f2029a222a6ee7ce424876948c6e9b9}\label{heater_8ino_a3f2029a222a6ee7ce424876948c6e9b9}} 
+int16\+\_\+t {\bfseries adc0}
+\item 
+\mbox{\Hypertarget{heater_8ino_a613461bb28bc340bafec733c978fb589}\label{heater_8ino_a613461bb28bc340bafec733c978fb589}} 
+int16\+\_\+t {\bfseries adc1}
+\item 
+\mbox{\Hypertarget{heater_8ino_af0eb6451212e67e640562181c6a26c16}\label{heater_8ino_af0eb6451212e67e640562181c6a26c16}} 
+int16\+\_\+t {\bfseries adc2}
+\item 
+\mbox{\Hypertarget{heater_8ino_afb68fb6b073a859db00ad92e2a5ffbf9}\label{heater_8ino_afb68fb6b073a859db00ad92e2a5ffbf9}} 
+int16\+\_\+t {\bfseries adc3}
+\item 
+\mbox{\Hypertarget{heater_8ino_a21452856c7ac32c7e29448abaea5f1c7}\label{heater_8ino_a21452856c7ac32c7e29448abaea5f1c7}} 
+float {\bfseries volts0}
+\item 
+\mbox{\Hypertarget{heater_8ino_a2e94e65b67f3564ff6fe7e2439661647}\label{heater_8ino_a2e94e65b67f3564ff6fe7e2439661647}} 
+float {\bfseries volts1}
+\item 
+\mbox{\Hypertarget{heater_8ino_a5161a39af3a389fdaad407070003e56a}\label{heater_8ino_a5161a39af3a389fdaad407070003e56a}} 
+float {\bfseries volts2}
+\item 
+\mbox{\Hypertarget{heater_8ino_a8835c8bf7639fb03fb41aa68d428454c}\label{heater_8ino_a8835c8bf7639fb03fb41aa68d428454c}} 
+float {\bfseries volts3}
+\item 
+\mbox{\Hypertarget{heater_8ino_a44d6de0ba172d868bf9235a7d472d763}\label{heater_8ino_a44d6de0ba172d868bf9235a7d472d763}} 
+char \mbox{\hyperlink{heater_8ino_a44d6de0ba172d868bf9235a7d472d763}{my\+\_\+buffer}} \mbox{[}41\mbox{]}
+\begin{DoxyCompactList}\small\item\em Массив для хранения символов из файлов конфигураций \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a6ccfccf31c7eb4d832a443dd834ce177}\label{heater_8ino_a6ccfccf31c7eb4d832a443dd834ce177}} 
+char \mbox{\hyperlink{heater_8ino_a6ccfccf31c7eb4d832a443dd834ce177}{pass\+\_\+buffer}} \mbox{[}25\mbox{]}
+\begin{DoxyCompactList}\small\item\em Массив для хранения символов пароля сети \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a3fadb0cc5ddc58416881064bcf0db231}\label{heater_8ino_a3fadb0cc5ddc58416881064bcf0db231}} 
+char \mbox{\hyperlink{heater_8ino_a3fadb0cc5ddc58416881064bcf0db231}{net\+\_\+buffer}} \mbox{[}25\mbox{]}
+\begin{DoxyCompactList}\small\item\em Массив для хранения символов имени сети \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a3131e1c6d8070bcb0dca32989ed94a23}\label{heater_8ino_a3131e1c6d8070bcb0dca32989ed94a23}} 
+char \mbox{\hyperlink{heater_8ino_a3131e1c6d8070bcb0dca32989ed94a23}{oil\+\_\+buffer}} \mbox{[}41\mbox{]}
+\begin{DoxyCompactList}\small\item\em Массив для хранения символов из файлов конфигураций \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a1d6b30f3428bcb726b8eeda062bb851b}\label{heater_8ino_a1d6b30f3428bcb726b8eeda062bb851b}} 
+char \mbox{\hyperlink{heater_8ino_a1d6b30f3428bcb726b8eeda062bb851b}{in\+\_\+water\+\_\+buffer}} \mbox{[}41\mbox{]}
+\begin{DoxyCompactList}\small\item\em Массив для хранения символов из файлов конфигураций \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_acf6dccba2bfffe6f9b63300224c36d7c}\label{heater_8ino_acf6dccba2bfffe6f9b63300224c36d7c}} 
+char \mbox{\hyperlink{heater_8ino_acf6dccba2bfffe6f9b63300224c36d7c}{out\+\_\+water\+\_\+buffer}} \mbox{[}41\mbox{]}
+\begin{DoxyCompactList}\small\item\em Массив для хранения символов из файлов конфигураций \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a07b4636215460a707fd18687362b9872}\label{heater_8ino_a07b4636215460a707fd18687362b9872}} 
+char \mbox{\hyperlink{heater_8ino_a07b4636215460a707fd18687362b9872}{air\+\_\+buffer}} \mbox{[}41\mbox{]}
+\begin{DoxyCompactList}\small\item\em Массив для хранения символов из файлов конфигураций \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a0974771b2fba5718eed6eecd656aac59}\label{heater_8ino_a0974771b2fba5718eed6eecd656aac59}} 
+char $\ast$ {\bfseries ssid} = \&\mbox{\hyperlink{heater_8ino_a3fadb0cc5ddc58416881064bcf0db231}{net\+\_\+buffer}}\mbox{[}0\mbox{]}
+\item 
+\mbox{\Hypertarget{heater_8ino_a59460a3ff2c12443d1022e5cc0fba85c}\label{heater_8ino_a59460a3ff2c12443d1022e5cc0fba85c}} 
+char $\ast$ {\bfseries password} = \&\mbox{\hyperlink{heater_8ino_a6ccfccf31c7eb4d832a443dd834ce177}{pass\+\_\+buffer}}\mbox{[}0\mbox{]}
+\item 
+\mbox{\Hypertarget{heater_8ino_a187989b23ad16eab1463478f3434ad35}\label{heater_8ino_a187989b23ad16eab1463478f3434ad35}} 
+char $\ast$ {\bfseries oil\+\_\+number\+\_\+18b20} = \&\mbox{\hyperlink{heater_8ino_a3131e1c6d8070bcb0dca32989ed94a23}{oil\+\_\+buffer}}\mbox{[}0\mbox{]}
+\item 
+\mbox{\Hypertarget{heater_8ino_a7bc6d638cbcb10e67cba4c233828c22c}\label{heater_8ino_a7bc6d638cbcb10e67cba4c233828c22c}} 
+char $\ast$ {\bfseries air\+\_\+number\+\_\+18b20} = \&\mbox{\hyperlink{heater_8ino_a07b4636215460a707fd18687362b9872}{air\+\_\+buffer}}\mbox{[}0\mbox{]}
+\item 
+Async\+Mqtt\+Client \mbox{\hyperlink{heater_8ino_aed6ff0a8b8a5d26a2cabe6a8665e22c7}{mqtt\+Client}}
+\item 
+\mbox{\Hypertarget{heater_8ino_aa65c5b3d176f179677860395b6b895f0}\label{heater_8ino_aa65c5b3d176f179677860395b6b895f0}} 
+Timer\+Handle\+\_\+t {\bfseries mqtt\+Reconnect\+Timer}
+\item 
+\mbox{\Hypertarget{heater_8ino_adabc45e36eb31021e6016659d1c01ad8}\label{heater_8ino_adabc45e36eb31021e6016659d1c01ad8}} 
+Timer\+Handle\+\_\+t {\bfseries wifi\+Reconnect\+Timer}
+\item 
+\mbox{\Hypertarget{heater_8ino_a7a8a35aed7cf08d4d0134f7cb0dffa22}\label{heater_8ino_a7a8a35aed7cf08d4d0134f7cb0dffa22}} 
+byte {\bfseries t} \mbox{[}8\mbox{]} = \{ 0, 0, 0, 0, 0, 0, 0, 0\}
+\item 
+\mbox{\Hypertarget{heater_8ino_a93fd8a96c5b8abba258c00eca2b99a3d}\label{heater_8ino_a93fd8a96c5b8abba258c00eca2b99a3d}} 
+byte {\bfseries addr\+\_\+oil\+\_\+temp} \mbox{[}8\mbox{]}
+\item 
+\mbox{\Hypertarget{heater_8ino_aaa2c4587210d0e500429a55821363ed6}\label{heater_8ino_aaa2c4587210d0e500429a55821363ed6}} 
+byte {\bfseries addr\+\_\+in\+\_\+water\+\_\+temp} \mbox{[}8\mbox{]}
+\item 
+\mbox{\Hypertarget{heater_8ino_a4a2a9aa71ed95a08cccc3704e427ec2d}\label{heater_8ino_a4a2a9aa71ed95a08cccc3704e427ec2d}} 
+byte {\bfseries addr\+\_\+out\+\_\+water\+\_\+temp} \mbox{[}8\mbox{]}
+\item 
+\mbox{\Hypertarget{heater_8ino_a1419234081491d9e9c77afddf6b0ac8b}\label{heater_8ino_a1419234081491d9e9c77afddf6b0ac8b}} 
+byte {\bfseries addr\+\_\+air\+\_\+temp} \mbox{[}8\mbox{]}
+\item 
+\mbox{\Hypertarget{heater_8ino_a84caa2d9dd60b76f828edbc8656ee4df}\label{heater_8ino_a84caa2d9dd60b76f828edbc8656ee4df}} 
+byte {\bfseries addr1} \mbox{[}8\mbox{]}
+\item 
+\mbox{\Hypertarget{heater_8ino_a75db4ac6a223bc3f89b63e74f2dbf3c8}\label{heater_8ino_a75db4ac6a223bc3f89b63e74f2dbf3c8}} 
+byte {\bfseries oil\+\_\+temp\+\_\+flag}
+\item 
+\mbox{\Hypertarget{heater_8ino_a8acdcef535adb9e9f8cf0e39eeca1ab3}\label{heater_8ino_a8acdcef535adb9e9f8cf0e39eeca1ab3}} 
+byte {\bfseries in\+\_\+water\+\_\+temp\+\_\+flag}
+\item 
+\mbox{\Hypertarget{heater_8ino_ae98e9e1266f069c9761b2a4d1ff532a6}\label{heater_8ino_ae98e9e1266f069c9761b2a4d1ff532a6}} 
+byte {\bfseries out\+\_\+water\+\_\+temp\+\_\+flag}
+\item 
+\mbox{\Hypertarget{heater_8ino_a246f2cab87556911aa83993199ddb543}\label{heater_8ino_a246f2cab87556911aa83993199ddb543}} 
+byte {\bfseries air\+\_\+temp\+\_\+flag}
+\item 
+\mbox{\Hypertarget{heater_8ino_ab32e369f1cd1e9ae4f6ef5c21c9ad7fe}\label{heater_8ino_ab32e369f1cd1e9ae4f6ef5c21c9ad7fe}} 
+String {\bfseries temp\+\_\+number\+\_\+reading} = \char`\"{}!\char`\"{}
+\item 
+\mbox{\Hypertarget{heater_8ino_a863c214d56d28a55467c000641e1be91}\label{heater_8ino_a863c214d56d28a55467c000641e1be91}} 
+IPAddress {\bfseries ip}
+\item 
+\mbox{\Hypertarget{heater_8ino_afb19b5007d0aeab0f253f583e0620b5c}\label{heater_8ino_afb19b5007d0aeab0f253f583e0620b5c}} 
+String {\bfseries SW\+\_\+var} = \char`\"{}\char`\"{}
+\item 
+\mbox{\Hypertarget{heater_8ino_a277220b3b2f806eaac5172db352a8e28}\label{heater_8ino_a277220b3b2f806eaac5172db352a8e28}} 
+String {\bfseries SW\+\_\+var\+\_\+temp} = \char`\"{}\char`\"{}
+\item 
+\mbox{\Hypertarget{heater_8ino_a570678761b0cd7c77cbdfc8ea9e542d0}\label{heater_8ino_a570678761b0cd7c77cbdfc8ea9e542d0}} 
+String {\bfseries SW\+\_\+var\+\_\+temp\+\_\+num} = \char`\"{}\char`\"{}
+\item 
+\mbox{\Hypertarget{heater_8ino_ae878eaeb484fa5997b3a1f86d52d5e29}\label{heater_8ino_ae878eaeb484fa5997b3a1f86d52d5e29}} 
+unsigned int \mbox{\hyperlink{heater_8ino_ae878eaeb484fa5997b3a1f86d52d5e29}{period\+\_\+\+DHT22}} = 60000
+\begin{DoxyCompactList}\small\item\em таймер для датчика влажности \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_aec2cd7bedcc9684053a693b288f3205f}\label{heater_8ino_aec2cd7bedcc9684053a693b288f3205f}} 
+unsigned int \mbox{\hyperlink{heater_8ino_aec2cd7bedcc9684053a693b288f3205f}{period\+\_\+18b20\+\_\+1}} = 30000
+\begin{DoxyCompactList}\small\item\em таймер для первого датчика температуры \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_affac22d166540797f4e6d8bf78dd1cd1}\label{heater_8ino_affac22d166540797f4e6d8bf78dd1cd1}} 
+unsigned int \mbox{\hyperlink{heater_8ino_affac22d166540797f4e6d8bf78dd1cd1}{period\+\_\+18b20\+\_\+2}} = 25000
+\begin{DoxyCompactList}\small\item\em таймер для второго датчика температуры \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_af6c52a92c9aa54620862730d0512f4dc}\label{heater_8ino_af6c52a92c9aa54620862730d0512f4dc}} 
+unsigned int \mbox{\hyperlink{heater_8ino_af6c52a92c9aa54620862730d0512f4dc}{period\+\_\+18b20\+\_\+3}} = 20000
+\begin{DoxyCompactList}\small\item\em таймер для третьего датчика температуры \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a1f51d04fc3a1eedcf198fd1c305df1ec}\label{heater_8ino_a1f51d04fc3a1eedcf198fd1c305df1ec}} 
+unsigned int \mbox{\hyperlink{heater_8ino_a1f51d04fc3a1eedcf198fd1c305df1ec}{period\+\_\+18b20\+\_\+4}} = 23000
+\begin{DoxyCompactList}\small\item\em таймер для четвертого датчика температуры \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_abfc4db7b4c24a01ddbff053c0948ba79}\label{heater_8ino_abfc4db7b4c24a01ddbff053c0948ba79}} 
+unsigned int \mbox{\hyperlink{heater_8ino_abfc4db7b4c24a01ddbff053c0948ba79}{period\+\_\+flame\+\_\+sensor}} = 2000
+\begin{DoxyCompactList}\small\item\em таймер для датчика пламени \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a49201b0cff1b0371034757636afc1732}\label{heater_8ino_a49201b0cff1b0371034757636afc1732}} 
+unsigned int \mbox{\hyperlink{heater_8ino_a49201b0cff1b0371034757636afc1732}{period\+\_\+fuel\+\_\+sensor}} = 10000
+\begin{DoxyCompactList}\small\item\em таймер для датчика уровня топлива \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a04d40e1baa226b9623999484e960d5ad}\label{heater_8ino_a04d40e1baa226b9623999484e960d5ad}} 
+unsigned int \mbox{\hyperlink{heater_8ino_a04d40e1baa226b9623999484e960d5ad}{period\+\_\+blink1}} = 2000
+\begin{DoxyCompactList}\small\item\em таймер для светодиода -\/ пинг \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a1bc49b5ade4146ec358c071dd349bc66}\label{heater_8ino_a1bc49b5ade4146ec358c071dd349bc66}} 
+unsigned int \mbox{\hyperlink{heater_8ino_a1bc49b5ade4146ec358c071dd349bc66}{period\+\_\+fuel\+\_\+tank}} = 0
+\begin{DoxyCompactList}\small\item\em таймер для наполнения бака по времени \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a7f9b9662ebeee24557b87589b8e60a1c}\label{heater_8ino_a7f9b9662ebeee24557b87589b8e60a1c}} 
+unsigned int \mbox{\hyperlink{heater_8ino_a7f9b9662ebeee24557b87589b8e60a1c}{period\+\_\+air\+\_\+before}} = 5000
+\begin{DoxyCompactList}\small\item\em таймер для продувки печи перед стартом \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a83eec18a9d014537a3f3d4251756c305}\label{heater_8ino_a83eec18a9d014537a3f3d4251756c305}} 
+unsigned int \mbox{\hyperlink{heater_8ino_a83eec18a9d014537a3f3d4251756c305}{period\+\_\+air\+\_\+after}} = 5000
+\begin{DoxyCompactList}\small\item\em таймер для продувки печи при останове \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_ae66529f0edbc115bd029b667b7901ccd}\label{heater_8ino_ae66529f0edbc115bd029b667b7901ccd}} 
+unsigned int \mbox{\hyperlink{heater_8ino_ae66529f0edbc115bd029b667b7901ccd}{period\+\_\+air\+\_\+ing}} = 5000
+\begin{DoxyCompactList}\small\item\em таймер для диапазона меж продувкой и подачей искры \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a4c5ba760c8d10ec33e77cb0b86d102cc}\label{heater_8ino_a4c5ba760c8d10ec33e77cb0b86d102cc}} 
+unsigned int \mbox{\hyperlink{heater_8ino_a4c5ba760c8d10ec33e77cb0b86d102cc}{period\+\_\+sparkle\+\_\+ing}} = 2000
+\begin{DoxyCompactList}\small\item\em таймер продолжительности подачи искры \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a2af07752a8c904c188b5c54e135bb9ec}\label{heater_8ino_a2af07752a8c904c188b5c54e135bb9ec}} 
+unsigned int \mbox{\hyperlink{heater_8ino_a2af07752a8c904c188b5c54e135bb9ec}{period\+\_\+between\+\_\+sparkle\+\_\+ing}} = 2000
+\begin{DoxyCompactList}\small\item\em таймер периода между подачами искры \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a66c81a442be3b96d0cfd4fa83419bf54}\label{heater_8ino_a66c81a442be3b96d0cfd4fa83419bf54}} 
+unsigned int \mbox{\hyperlink{heater_8ino_a66c81a442be3b96d0cfd4fa83419bf54}{period\+\_\+18b20\+\_\+read}} = 500
+\begin{DoxyCompactList}\small\item\em таймер ожидания преобразования в датчике 18b20. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a904ef248d6aaa90194f90afce1321ccf}\label{heater_8ino_a904ef248d6aaa90194f90afce1321ccf}} 
+unsigned long \mbox{\hyperlink{heater_8ino_a904ef248d6aaa90194f90afce1321ccf}{dht22}} = 0
+\begin{DoxyCompactList}\small\item\em Техническая переменная счетчика таймера \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_ade5a308bb011b211834786c2b0116421}\label{heater_8ino_ade5a308bb011b211834786c2b0116421}} 
+unsigned long \mbox{\hyperlink{heater_8ino_ade5a308bb011b211834786c2b0116421}{blink1}}
+\begin{DoxyCompactList}\small\item\em Техническая переменная счетчика таймера \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_af86a48e8ccfc002ddf896e4eee8184b1}\label{heater_8ino_af86a48e8ccfc002ddf896e4eee8184b1}} 
+unsigned long \mbox{\hyperlink{heater_8ino_af86a48e8ccfc002ddf896e4eee8184b1}{T18b20\+\_\+1}} = 0
+\begin{DoxyCompactList}\small\item\em Техническая переменная счетчика таймера \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a7f662104ef88b4e810394033faa0ef1d}\label{heater_8ino_a7f662104ef88b4e810394033faa0ef1d}} 
+unsigned long \mbox{\hyperlink{heater_8ino_a7f662104ef88b4e810394033faa0ef1d}{T18b20\+\_\+2}} = 0
+\begin{DoxyCompactList}\small\item\em Техническая переменная счетчика таймера \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a9e2e5decca19ec0f003c34155f863073}\label{heater_8ino_a9e2e5decca19ec0f003c34155f863073}} 
+unsigned long \mbox{\hyperlink{heater_8ino_a9e2e5decca19ec0f003c34155f863073}{T18b20\+\_\+3}} = 0
+\begin{DoxyCompactList}\small\item\em Техническая переменная счетчика таймера \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_ac4d44b1c9c85a64111b203b5a73593fe}\label{heater_8ino_ac4d44b1c9c85a64111b203b5a73593fe}} 
+unsigned long \mbox{\hyperlink{heater_8ino_ac4d44b1c9c85a64111b203b5a73593fe}{T18b20\+\_\+4}} = 0
+\begin{DoxyCompactList}\small\item\em Техническая переменная счетчика таймера \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a87bb694433b60bcf53469baa5045d0fd}\label{heater_8ino_a87bb694433b60bcf53469baa5045d0fd}} 
+unsigned long \mbox{\hyperlink{heater_8ino_a87bb694433b60bcf53469baa5045d0fd}{flame\+\_\+sensor}} = 0
+\begin{DoxyCompactList}\small\item\em Техническая переменная счетчика таймера \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_af79eb4bb68f446e4106a4da7f4def433}\label{heater_8ino_af79eb4bb68f446e4106a4da7f4def433}} 
+unsigned long \mbox{\hyperlink{heater_8ino_af79eb4bb68f446e4106a4da7f4def433}{fuel\+\_\+sensor}} = 0
+\begin{DoxyCompactList}\small\item\em Техническая переменная счетчика таймера \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a35b3ff33a17699482a4da2b38b5a4aac}\label{heater_8ino_a35b3ff33a17699482a4da2b38b5a4aac}} 
+unsigned long \mbox{\hyperlink{heater_8ino_a35b3ff33a17699482a4da2b38b5a4aac}{fuel\+\_\+tank\+\_\+var}} = 0
+\begin{DoxyCompactList}\small\item\em Техническая переменная счетчика таймера \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_ad9fcf23cc4c884d273bd636c73255974}\label{heater_8ino_ad9fcf23cc4c884d273bd636c73255974}} 
+unsigned long \mbox{\hyperlink{heater_8ino_ad9fcf23cc4c884d273bd636c73255974}{air\+\_\+before}} = 0
+\begin{DoxyCompactList}\small\item\em Техническая переменная счетчика таймера \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a47a1a3ba36161ebe4bc5629594fd1686}\label{heater_8ino_a47a1a3ba36161ebe4bc5629594fd1686}} 
+unsigned long \mbox{\hyperlink{heater_8ino_a47a1a3ba36161ebe4bc5629594fd1686}{air\+\_\+after}} = 0
+\begin{DoxyCompactList}\small\item\em Техническая переменная счетчика таймера \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a9a44f0f940ac3c6e0c402a3c6f348872}\label{heater_8ino_a9a44f0f940ac3c6e0c402a3c6f348872}} 
+unsigned long \mbox{\hyperlink{heater_8ino_a9a44f0f940ac3c6e0c402a3c6f348872}{air\+\_\+ing}} = 0
+\begin{DoxyCompactList}\small\item\em Техническая переменная счетчика таймера \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a9c41f26e42a551c3255b0e3ebe4dc985}\label{heater_8ino_a9c41f26e42a551c3255b0e3ebe4dc985}} 
+unsigned long \mbox{\hyperlink{heater_8ino_a9c41f26e42a551c3255b0e3ebe4dc985}{sparkle\+\_\+ing}} = 0
+\begin{DoxyCompactList}\small\item\em Техническая переменная счетчика таймера \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_ac5eb64c07a12a905e18a1d42915a71f7}\label{heater_8ino_ac5eb64c07a12a905e18a1d42915a71f7}} 
+unsigned long \mbox{\hyperlink{heater_8ino_ac5eb64c07a12a905e18a1d42915a71f7}{between\+\_\+sparkle\+\_\+ing}} = 0
+\begin{DoxyCompactList}\small\item\em Техническая переменная счетчика таймера \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_ae849265006de54455aa1a91ee0ecd211}\label{heater_8ino_ae849265006de54455aa1a91ee0ecd211}} 
+unsigned long \mbox{\hyperlink{heater_8ino_ae849265006de54455aa1a91ee0ecd211}{read\+\_\+18b20}} = 0
+\begin{DoxyCompactList}\small\item\em Техническая переменная счетчика таймера \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_ac8eed5648fb8a5f8f8c3c424a4590195}\label{heater_8ino_ac8eed5648fb8a5f8f8c3c424a4590195}} 
+byte \mbox{\hyperlink{heater_8ino_ac8eed5648fb8a5f8f8c3c424a4590195}{x}} = 0
+\begin{DoxyCompactList}\small\item\em Флаг состояния системы 0-\/стоп, 1-\/работа, 2 -\/ авария \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a58eda3ff03b027f0a8a51b85d22c01ea}\label{heater_8ino_a58eda3ff03b027f0a8a51b85d22c01ea}} 
+byte \mbox{\hyperlink{heater_8ino_a58eda3ff03b027f0a8a51b85d22c01ea}{x1}} = 0
+\begin{DoxyCompactList}\small\item\em флаг состояния горелки 0 -\/ не горит, 1 -\/ горит, 2 -\/ запуск, 3 -\/ останов \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_aebf2b5dbc6a584b8a658c089a78c6132}\label{heater_8ino_aebf2b5dbc6a584b8a658c089a78c6132}} 
+byte \mbox{\hyperlink{heater_8ino_aebf2b5dbc6a584b8a658c089a78c6132}{y}} = 0
+\begin{DoxyCompactList}\small\item\em Флаг состояния автоматического режима 0-\/ручной, 1-\/автоматический \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_aafe3f4437fc8c68bc6e5fd4ade02c623}\label{heater_8ino_aafe3f4437fc8c68bc6e5fd4ade02c623}} 
+byte \mbox{\hyperlink{heater_8ino_aafe3f4437fc8c68bc6e5fd4ade02c623}{a}} = 0
+\begin{DoxyCompactList}\small\item\em Флаг состояния канала первичного воздуха 0-\/закрыт, 1-\/открыт \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a56f738a84f66e60a4ee1de235072c0ab}\label{heater_8ino_a56f738a84f66e60a4ee1de235072c0ab}} 
+byte \mbox{\hyperlink{heater_8ino_a56f738a84f66e60a4ee1de235072c0ab}{oh}} = 0
+\begin{DoxyCompactList}\small\item\em Флаг состояния канала подогрева масла 0-\/выключен, 1-\/включен \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a33de22d4de18c680083858908095d83e}\label{heater_8ino_a33de22d4de18c680083858908095d83e}} 
+byte \mbox{\hyperlink{heater_8ino_a33de22d4de18c680083858908095d83e}{af}} = 0
+\begin{DoxyCompactList}\small\item\em флаг состояния канала вторичного воздуха 0-\/выключен, 1-\/включен \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_adb5f95f8b4e81507ece4b68ae6bcbdfc}\label{heater_8ino_adb5f95f8b4e81507ece4b68ae6bcbdfc}} 
+byte \mbox{\hyperlink{heater_8ino_adb5f95f8b4e81507ece4b68ae6bcbdfc}{st}} = 0
+\begin{DoxyCompactList}\small\item\em флаг состояния выключателя горелки 0-\/выключен, 1 -\/ включен \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a934f4e1db2683ee5723c8eb326cb2da4}\label{heater_8ino_a934f4e1db2683ee5723c8eb326cb2da4}} 
+byte \mbox{\hyperlink{heater_8ino_a934f4e1db2683ee5723c8eb326cb2da4}{fs1}} = 0
+\begin{DoxyCompactList}\small\item\em переменная состояния канала датчика пламени \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_aa4693071a01980273f6c6e3d71766aba}\label{heater_8ino_aa4693071a01980273f6c6e3d71766aba}} 
+byte \mbox{\hyperlink{heater_8ino_aa4693071a01980273f6c6e3d71766aba}{oil}} = 0
+\begin{DoxyCompactList}\small\item\em флаг состояния насоса подкачки масла 0-\/выключен, 1-\/включен \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a02f45a1a26e7a9c28620fe09cdee3c86}\label{heater_8ino_a02f45a1a26e7a9c28620fe09cdee3c86}} 
+byte \mbox{\hyperlink{heater_8ino_a02f45a1a26e7a9c28620fe09cdee3c86}{bl1}} = 0
+\begin{DoxyCompactList}\small\item\em флаг состояния датчика уровня масла в бачке 0-\/пустой, 1-\/ полный 2-\/средний 3-\/неисправный \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a35c1a71d6e87bfd69c75af6ec917c26c}\label{heater_8ino_a35c1a71d6e87bfd69c75af6ec917c26c}} 
+byte \mbox{\hyperlink{heater_8ino_a35c1a71d6e87bfd69c75af6ec917c26c}{sp}} = 0
+\begin{DoxyCompactList}\small\item\em флаг состояния подачи искры \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_ab990b8ad6fe2ad2f9a7f685f3ab6d1c3}\label{heater_8ino_ab990b8ad6fe2ad2f9a7f685f3ab6d1c3}} 
+byte \mbox{\hyperlink{heater_8ino_ab990b8ad6fe2ad2f9a7f685f3ab6d1c3}{sparkle\+\_\+item}} = 0
+\begin{DoxyCompactList}\small\item\em счетчик еоличества попыток запуска горелки \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a9ede762db9771a13c8e3bc050e0d784c}\label{heater_8ino_a9ede762db9771a13c8e3bc050e0d784c}} 
+byte \mbox{\hyperlink{heater_8ino_a9ede762db9771a13c8e3bc050e0d784c}{var\+\_\+blink1}} = 0
+\begin{DoxyCompactList}\small\item\em флаг для мигания светодиодом \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_aef235f6845f0bade2b3774e78f869e47}\label{heater_8ino_aef235f6845f0bade2b3774e78f869e47}} 
+byte \mbox{\hyperlink{heater_8ino_aef235f6845f0bade2b3774e78f869e47}{error\+\_\+flag}} = 0
+\begin{DoxyCompactList}\small\item\em переменная кода ошибки 0-\/нет, 1-\/ошибка наполнения топливом \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a4dc47e6d25c278d63bbd06993e8e83e9}\label{heater_8ino_a4dc47e6d25c278d63bbd06993e8e83e9}} 
+float \mbox{\hyperlink{heater_8ino_a4dc47e6d25c278d63bbd06993e8e83e9}{fuel\+\_\+tank}} = 0
+\begin{DoxyCompactList}\small\item\em переменная хранения значения времени заправки бака масла для eeprom. \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a650e651a1c13a09f36fd5e18e77ffd1d}\label{heater_8ino_a650e651a1c13a09f36fd5e18e77ffd1d}} 
+float \mbox{\hyperlink{heater_8ino_a650e651a1c13a09f36fd5e18e77ffd1d}{oil\+\_\+temp\+\_\+hi}}
+\begin{DoxyCompactList}\small\item\em переменная хранения значения максимальной температуры масла для выключения тена \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_aecca4f74db192e8a3ec18fe5dbc3c9e7}\label{heater_8ino_aecca4f74db192e8a3ec18fe5dbc3c9e7}} 
+float \mbox{\hyperlink{heater_8ino_aecca4f74db192e8a3ec18fe5dbc3c9e7}{oil\+\_\+temp\+\_\+low}}
+\begin{DoxyCompactList}\small\item\em переменная хранения значения минимальной температуры масла для выключения тена \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_addd07d63e328e78f67e350dda1870687}\label{heater_8ino_addd07d63e328e78f67e350dda1870687}} 
+float \mbox{\hyperlink{heater_8ino_addd07d63e328e78f67e350dda1870687}{water\+\_\+temp\+\_\+hi}}
+\begin{DoxyCompactList}\small\item\em переменная хранения значения максимальной температуры антифриза в системе \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a84e6d2185de8ff4cf15a2bc54a1b4a13}\label{heater_8ino_a84e6d2185de8ff4cf15a2bc54a1b4a13}} 
+float \mbox{\hyperlink{heater_8ino_a84e6d2185de8ff4cf15a2bc54a1b4a13}{water\+\_\+temp\+\_\+low}}
+\begin{DoxyCompactList}\small\item\em переменная хранения значения минимальной температуры антифриза в системе \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_aee7552291a82c98a67b97b42ce73e5f6}\label{heater_8ino_aee7552291a82c98a67b97b42ce73e5f6}} 
+int \mbox{\hyperlink{heater_8ino_aee7552291a82c98a67b97b42ce73e5f6}{m\+Vper\+Amp}} = 100
+\begin{DoxyCompactList}\small\item\em use 100 for 20A Module and 66 for 30A Module \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_ad68e67ea916d401b0ab94d9e3528fa0e}\label{heater_8ino_ad68e67ea916d401b0ab94d9e3528fa0e}} 
+double {\bfseries Voltage} = 0
+\item 
+\mbox{\Hypertarget{heater_8ino_a3f1808829957f580d7c0e85444bc32a1}\label{heater_8ino_a3f1808829957f580d7c0e85444bc32a1}} 
+double {\bfseries VRMS} = 0
+\item 
+\mbox{\Hypertarget{heater_8ino_a0c41fa249ffe87194798a98f7a967191}\label{heater_8ino_a0c41fa249ffe87194798a98f7a967191}} 
+double {\bfseries Amps\+RMS} = 0
+\item 
+\mbox{\Hypertarget{heater_8ino_a869498e2021d3335397e3c8abfb7192d}\label{heater_8ino_a869498e2021d3335397e3c8abfb7192d}} 
+String \mbox{\hyperlink{heater_8ino_a869498e2021d3335397e3c8abfb7192d}{fuel\+\_\+tank\+\_\+txt}}
+\begin{DoxyCompactList}\small\item\em длительность периода наполения бака масла используется для MQTT сообщений \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_aeca381f8fe6b12ac64ea82d24a1c4d42}\label{heater_8ino_aeca381f8fe6b12ac64ea82d24a1c4d42}} 
+String \mbox{\hyperlink{heater_8ino_aeca381f8fe6b12ac64ea82d24a1c4d42}{period\+\_\+air\+\_\+before\+\_\+txt}}
+\begin{DoxyCompactList}\small\item\em длительность периода продувки котла перед стартом используется для MQTT сообщений \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_aac473b5b94d93d304b22ef4176211e5d}\label{heater_8ino_aac473b5b94d93d304b22ef4176211e5d}} 
+String \mbox{\hyperlink{heater_8ino_aac473b5b94d93d304b22ef4176211e5d}{period\+\_\+air\+\_\+after\+\_\+txt}}
+\begin{DoxyCompactList}\small\item\em длительность периода продувки котла после останова используется для MQTT сообщений \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_ad25464806d493bd4e0aa8799a6d15575}\label{heater_8ino_ad25464806d493bd4e0aa8799a6d15575}} 
+String \mbox{\hyperlink{heater_8ino_ad25464806d493bd4e0aa8799a6d15575}{period\+\_\+air\+\_\+ing\+\_\+txt}}
+\begin{DoxyCompactList}\small\item\em длительность периода первичного впрыска топлива перед стартом используется для MQTT сообщений \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a131c414831efa7d4fb2470e21c140f33}\label{heater_8ino_a131c414831efa7d4fb2470e21c140f33}} 
+String \mbox{\hyperlink{heater_8ino_a131c414831efa7d4fb2470e21c140f33}{period\+\_\+between\+\_\+sparkle\+\_\+ing\+\_\+txt}}
+\begin{DoxyCompactList}\small\item\em длительность периода между искрами используется для MQTT сообщений \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a751f17bb2c73965dc44327f8a4a6eabd}\label{heater_8ino_a751f17bb2c73965dc44327f8a4a6eabd}} 
+String \mbox{\hyperlink{heater_8ino_a751f17bb2c73965dc44327f8a4a6eabd}{period\+\_\+sparkle\+\_\+ing\+\_\+txt}}
+\begin{DoxyCompactList}\small\item\em длительность периода искры используется для MQTT сообщений \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a8109d46e09c9427564af58e948e389c7}\label{heater_8ino_a8109d46e09c9427564af58e948e389c7}} 
+String \mbox{\hyperlink{heater_8ino_a8109d46e09c9427564af58e948e389c7}{oil\+\_\+temp\+\_\+hi\+\_\+txt}}
+\begin{DoxyCompactList}\small\item\em значение температуры масла для выключения тена используется для MQTT сообщений \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a02789ec0e9e2633f044e5af663e8f3da}\label{heater_8ino_a02789ec0e9e2633f044e5af663e8f3da}} 
+String \mbox{\hyperlink{heater_8ino_a02789ec0e9e2633f044e5af663e8f3da}{oil\+\_\+temp\+\_\+low\+\_\+txt}}
+\begin{DoxyCompactList}\small\item\em значение температуры масла для включения тена используется для MQTT сообщений \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a50e9bd67779e737fd1a37e26985d450c}\label{heater_8ino_a50e9bd67779e737fd1a37e26985d450c}} 
+String \mbox{\hyperlink{heater_8ino_a50e9bd67779e737fd1a37e26985d450c}{water\+\_\+temp\+\_\+hi\+\_\+txt}}
+\begin{DoxyCompactList}\small\item\em значение температуры масла для выключения тена используется для MQTT сообщений \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_aaf7f7f8b99499a4bea7abd95624c59b8}\label{heater_8ino_aaf7f7f8b99499a4bea7abd95624c59b8}} 
+String \mbox{\hyperlink{heater_8ino_aaf7f7f8b99499a4bea7abd95624c59b8}{water\+\_\+temp\+\_\+low\+\_\+txt}}
+\begin{DoxyCompactList}\small\item\em значение температуры масла для включения тена используется для MQTT сообщений \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_a6c41a267026e3a97cb5a52af205bdf50}\label{heater_8ino_a6c41a267026e3a97cb5a52af205bdf50}} 
+float {\bfseries temp\+\_\+sensor} = 0
+\item 
+\mbox{\Hypertarget{heater_8ino_a7f67685e07b75332021ff6b0798572e3}\label{heater_8ino_a7f67685e07b75332021ff6b0798572e3}} 
+String {\bfseries var}
+\item 
+\mbox{\Hypertarget{heater_8ino_ada6bb6bf732ccc8fdaa825823b1dcf9f}\label{heater_8ino_ada6bb6bf732ccc8fdaa825823b1dcf9f}} 
+byte \mbox{\hyperlink{heater_8ino_ada6bb6bf732ccc8fdaa825823b1dcf9f}{olsp}} = 0
+\begin{DoxyCompactList}\small\item\em флаг датчика топлива нижний порог \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_aa195f264a79666a9e9edbc6892e545ed}\label{heater_8ino_aa195f264a79666a9e9edbc6892e545ed}} 
+byte \mbox{\hyperlink{heater_8ino_aa195f264a79666a9e9edbc6892e545ed}{ohsp}} = 0
+\begin{DoxyCompactList}\small\item\em флаг датчика топлива верхний порог \end{DoxyCompactList}\item 
+\mbox{\Hypertarget{heater_8ino_ad6b0c54ec67830f6a5945d5de1a5c3d1}\label{heater_8ino_ad6b0c54ec67830f6a5945d5de1a5c3d1}} 
+byte \mbox{\hyperlink{heater_8ino_ad6b0c54ec67830f6a5945d5de1a5c3d1}{sd\+\_\+con}} = 0
+\begin{DoxyCompactList}\small\item\em флаг подключенной флешки \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Функции}
+\mbox{\Hypertarget{heater_8ino_affcd512c3a156f26c390b7c16f393c3d}\label{heater_8ino_affcd512c3a156f26c390b7c16f393c3d}} 
+\index{heater.ino@{heater.ino}!indikacia@{indikacia}}
+\index{indikacia@{indikacia}!heater.ino@{heater.ino}}
+\doxysubsubsection{\texorpdfstring{indikacia()}{indikacia()}}
+{\footnotesize\ttfamily void indikacia (\begin{DoxyParamCaption}\item[{String}]{k,  }\item[{int}]{k1 }\end{DoxyParamCaption})}
+
+
+
+функция отображения информации в строках состояния на экране 
+
+
+\begin{DoxyParams}[1]{Аргументы}
+\mbox{\texttt{ in}}  & {\em k} & в функцию передаем содержимое строки для отображения \\
+\hline
+\mbox{\texttt{ in}}  & {\em k1} & в функцию передаем адрес текстовой ячейки в мониторе\\
+\hline
+\end{DoxyParams}
+Передаем содержимое строки и адрес ячейки, фунцкия преобразует информацию в понятный для монитора формат и передает. 
+
+См. определение в файле heater.\+ino строка 678
+
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{678                                  \{}
+\DoxyCodeLine{679 }
+\DoxyCodeLine{680   String stringVar = String(k1);}
+\DoxyCodeLine{681   String var = String(\textcolor{stringliteral}{"{}page0.t"{}}) + stringVar + String(\textcolor{stringliteral}{"{}.txt=\(\backslash\)"{}"{}}) + k + String(\textcolor{stringliteral}{"{}\(\backslash\)"{}"{}}) + String(\textcolor{stringliteral}{"{}\(\backslash\)xFF\(\backslash\)xFF\(\backslash\)xFF"{}});}
+\DoxyCodeLine{682   Serial.print(var); \textcolor{comment}{//индикация на дисплее}}
+\DoxyCodeLine{683   \textcolor{comment}{//Serial.print("{}ref page0\(\backslash\)xFF\(\backslash\)xFF\(\backslash\)xFF"{}); // обновить страницу}}
+\DoxyCodeLine{684 }
+\DoxyCodeLine{685 \}}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{heater_8ino_aef0db3b3e1fdec09928b07426cefaa0d}\label{heater_8ino_aef0db3b3e1fdec09928b07426cefaa0d}} 
+\index{heater.ino@{heater.ino}!obnulenie@{obnulenie}}
+\index{obnulenie@{obnulenie}!heater.ino@{heater.ino}}
+\doxysubsubsection{\texorpdfstring{obnulenie()}{obnulenie()}}
+{\footnotesize\ttfamily void obnulenie (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})}
+
+
+
+функция инициализации экрана в стартовое состояние 
+
+Функция выполняется один раз при старте и обеспечивает соответствие отображения информации на экране сотстоянию системы 
+
+См. определение в файле heater.\+ino строка 574
+
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{574                  \{}
+\DoxyCodeLine{575   \textcolor{comment}{//Лампочки в красный свет}}
+\DoxyCodeLine{576   Serial.print(\textcolor{stringliteral}{"{}page1.p1.pic=4\(\backslash\)xFF\(\backslash\)xFF\(\backslash\)xFF"{}});}
+\DoxyCodeLine{577   Serial.print(\textcolor{stringliteral}{"{}page1.p2.pic=4\(\backslash\)xFF\(\backslash\)xFF\(\backslash\)xFF"{}});}
+\DoxyCodeLine{578   Serial.print(\textcolor{stringliteral}{"{}page1.p3.pic=4\(\backslash\)xFF\(\backslash\)xFF\(\backslash\)xFF"{}});}
+\DoxyCodeLine{579   Serial.print(\textcolor{stringliteral}{"{}page1.p4.pic=4\(\backslash\)xFF\(\backslash\)xFF\(\backslash\)xFF"{}});}
+\DoxyCodeLine{580   Serial.print(\textcolor{stringliteral}{"{}page1.p5.pic=4\(\backslash\)xFF\(\backslash\)xFF\(\backslash\)xFF"{}});}
+\DoxyCodeLine{581   Serial.print(\textcolor{stringliteral}{"{}page1.p6.pic=4\(\backslash\)xFF\(\backslash\)xFF\(\backslash\)xFF"{}});}
+\DoxyCodeLine{582   Serial.print(\textcolor{stringliteral}{"{}page1.p7.pic=4\(\backslash\)xFF\(\backslash\)xFF\(\backslash\)xFF"{}});}
+\DoxyCodeLine{583   Serial.print(\textcolor{stringliteral}{"{}page1.p1.pic=4\(\backslash\)xFF\(\backslash\)xFF\(\backslash\)xFF"{}});}
+\DoxyCodeLine{584   \textcolor{comment}{//Тумблеры off}}
+\DoxyCodeLine{585   Serial.print(\textcolor{stringliteral}{"{}page1.bt0.val=1\(\backslash\)xFF\(\backslash\)xFF\(\backslash\)xFF"{}});}
+\DoxyCodeLine{586   Serial.print(\textcolor{stringliteral}{"{}page1.bt1.val=1\(\backslash\)xFF\(\backslash\)xFF\(\backslash\)xFF"{}});}
+\DoxyCodeLine{587   Serial.print(\textcolor{stringliteral}{"{}page1.bt2.val=1\(\backslash\)xFF\(\backslash\)xFF\(\backslash\)xFF"{}});}
+\DoxyCodeLine{588   Serial.print(\textcolor{stringliteral}{"{}page1.bt3.val=1\(\backslash\)xFF\(\backslash\)xFF\(\backslash\)xFF"{}});}
+\DoxyCodeLine{589   Serial.print(\textcolor{stringliteral}{"{}page1.bt4.val=1\(\backslash\)xFF\(\backslash\)xFF\(\backslash\)xFF"{}});}
+\DoxyCodeLine{590   Serial.print(\textcolor{stringliteral}{"{}page1.bt5.val=1\(\backslash\)xFF\(\backslash\)xFF\(\backslash\)xFF"{}});}
+\DoxyCodeLine{591   Serial.print(\textcolor{stringliteral}{"{}page1.bt6.val=1\(\backslash\)xFF\(\backslash\)xFF\(\backslash\)xFF"{}});}
+\DoxyCodeLine{592   \textcolor{comment}{//  на дисплей значение по умолчанию}}
+\DoxyCodeLine{593   \mbox{\hyperlink{heater_8ino_affcd512c3a156f26c390b7c16f393c3d}{indikacia}}(\textcolor{stringliteral}{"{}manual"{}}, 14);}
+\DoxyCodeLine{594   \mbox{\hyperlink{heater_8ino_affcd512c3a156f26c390b7c16f393c3d}{indikacia}}(\textcolor{stringliteral}{"{}off"{}}, 15);}
+\DoxyCodeLine{595   \mbox{\hyperlink{heater_8ino_affcd512c3a156f26c390b7c16f393c3d}{indikacia}}(\textcolor{stringliteral}{"{}-\/-\/-\/-\/-\/-\/"{}}, 16);}
+\DoxyCodeLine{596 }
+\DoxyCodeLine{597   \textcolor{comment}{// выводим на дисплей значения настроек}}
+\DoxyCodeLine{598   String temp1 = String(\mbox{\hyperlink{heater_8ino_aecca4f74db192e8a3ec18fe5dbc3c9e7}{oil\_temp\_low}}, 2);}
+\DoxyCodeLine{599   String var = String(\textcolor{stringliteral}{"{}page2.low.txt=\(\backslash\)"{}"{}}) + temp1 + String(\textcolor{stringliteral}{"{}\(\backslash\)"{}"{}}) + String(\textcolor{stringliteral}{"{}\(\backslash\)xFF\(\backslash\)xFF\(\backslash\)xFF"{}});}
+\DoxyCodeLine{600   Serial.print(var);}
+\DoxyCodeLine{601   temp1 = String(\mbox{\hyperlink{heater_8ino_a650e651a1c13a09f36fd5e18e77ffd1d}{oil\_temp\_hi}}, 2);}
+\DoxyCodeLine{602   var = String(\textcolor{stringliteral}{"{}page2.hi.txt=\(\backslash\)"{}"{}}) + temp1 + String(\textcolor{stringliteral}{"{}\(\backslash\)"{}"{}}) + String(\textcolor{stringliteral}{"{}\(\backslash\)xFF\(\backslash\)xFF\(\backslash\)xFF"{}});}
+\DoxyCodeLine{603   Serial.print(var);}
+\DoxyCodeLine{604   temp1 = String(\mbox{\hyperlink{heater_8ino_a84e6d2185de8ff4cf15a2bc54a1b4a13}{water\_temp\_low}}, 2);}
+\DoxyCodeLine{605   var = String(\textcolor{stringliteral}{"{}page2.wlow.txt=\(\backslash\)"{}"{}}) + temp1 + String(\textcolor{stringliteral}{"{}\(\backslash\)"{}"{}}) + String(\textcolor{stringliteral}{"{}\(\backslash\)xFF\(\backslash\)xFF\(\backslash\)xFF"{}});}
+\DoxyCodeLine{606   Serial.print(var);}
+\DoxyCodeLine{607   temp1 = String(\mbox{\hyperlink{heater_8ino_addd07d63e328e78f67e350dda1870687}{water\_temp\_hi}}, 2);}
+\DoxyCodeLine{608   var = String(\textcolor{stringliteral}{"{}page2.whi.txt=\(\backslash\)"{}"{}}) + temp1 + String(\textcolor{stringliteral}{"{}\(\backslash\)"{}"{}}) + String(\textcolor{stringliteral}{"{}\(\backslash\)xFF\(\backslash\)xFF\(\backslash\)xFF"{}});}
+\DoxyCodeLine{609   Serial.print(var);}
+\DoxyCodeLine{610   temp1 = String(\mbox{\hyperlink{heater_8ino_a4dc47e6d25c278d63bbd06993e8e83e9}{fuel\_tank}}, 2);}
+\DoxyCodeLine{611   var = String(\textcolor{stringliteral}{"{}page2.ftl.txt=\(\backslash\)"{}"{}}) + temp1 + String(\textcolor{stringliteral}{"{}\(\backslash\)"{}"{}}) + String(\textcolor{stringliteral}{"{}\(\backslash\)xFF\(\backslash\)xFF\(\backslash\)xFF"{}});}
+\DoxyCodeLine{612   Serial.print(var);}
+\DoxyCodeLine{613   Serial.print(\textcolor{stringliteral}{"{}ref page2\(\backslash\)xFF\(\backslash\)xFF\(\backslash\)xFF"{}});}
+\DoxyCodeLine{614 }
+\DoxyCodeLine{615 }
+\DoxyCodeLine{616   Serial.print(\textcolor{stringliteral}{"{}page0.ip.txt=\(\backslash\)"{}"{}});}
+\DoxyCodeLine{617   Serial.print(ip);}
+\DoxyCodeLine{618   Serial.print(String(\textcolor{stringliteral}{"{}\(\backslash\)"{}"{}}) + String(\textcolor{stringliteral}{"{}\(\backslash\)xFF\(\backslash\)xFF\(\backslash\)xFF"{}}));}
+\DoxyCodeLine{619   \textcolor{comment}{//Serial.print("{}ref page0\(\backslash\)xFF\(\backslash\)xFF\(\backslash\)xFF"{});}}
+\DoxyCodeLine{620   \mbox{\hyperlink{heater_8ino_ac8eed5648fb8a5f8f8c3c424a4590195}{x}} = 0;}
+\DoxyCodeLine{621   \mbox{\hyperlink{heater_8ino_aebf2b5dbc6a584b8a658c089a78c6132}{y}} = 0;}
+\DoxyCodeLine{622   \mbox{\hyperlink{heater_8ino_a58eda3ff03b027f0a8a51b85d22c01ea}{x1}} = 0;}
+\DoxyCodeLine{623   \mbox{\hyperlink{heater_8ino_aa4693071a01980273f6c6e3d71766aba}{oil}} = 0;}
+\DoxyCodeLine{624   \mbox{\hyperlink{heater_8ino_a56f738a84f66e60a4ee1de235072c0ab}{oh}} = 0;}
+\DoxyCodeLine{625   \mbox{\hyperlink{heater_8ino_a33de22d4de18c680083858908095d83e}{af}} = 0;}
+\DoxyCodeLine{626   \mbox{\hyperlink{heater_8ino_aafe3f4437fc8c68bc6e5fd4ade02c623}{a}} = 0;}
+\DoxyCodeLine{627   \mbox{\hyperlink{heater_8ino_affcd512c3a156f26c390b7c16f393c3d}{indikacia}}(\textcolor{stringliteral}{"{}\_\_\_\_\_\_\_\_\_"{}}, 16);}
+\DoxyCodeLine{628   \textcolor{comment}{// проверяем уровень топлива}}
+\DoxyCodeLine{629   \mbox{\hyperlink{heater_8ino_abfdb595ee9147192f7a277262ff363e7}{fuellevel}}();}
+\DoxyCodeLine{630 \}}
+
+\end{DoxyCode}
+\mbox{\Hypertarget{heater_8ino_a7dfd9b79bc5a37d7df40207afbc5431f}\label{heater_8ino_a7dfd9b79bc5a37d7df40207afbc5431f}} 
+\index{heater.ino@{heater.ino}!setup@{setup}}
+\index{setup@{setup}!heater.ino@{heater.ino}}
+\doxysubsubsection{\texorpdfstring{setup()}{setup()}}
+{\footnotesize\ttfamily void setup (\begin{DoxyParamCaption}\item[{void}]{ }\end{DoxyParamCaption})}
+
+
+
+функция первичной конфигурации системы 
+
+Функция выполняется один раз и определяет общую стартовую конфигурацию системы при запуске.
+
+включаем интерфейс I2\+C\+\_\+\+SC 
+\begin{DoxyCodeInclude}{0}
+\DoxyCodeLine{Wire.begin(\mbox{\hyperlink{heater_8ino_a18aefd12ad84d4c33dc97923cb821e47}{I2C\_SDA}}, \mbox{\hyperlink{heater_8ino_a212ca328a6409c98f8c3dfbbe1ba561d}{I2C\_SCL}});}
+
+\end{DoxyCodeInclude}
+ инициализация EEPROM с определенным размером 
+\begin{DoxyCodeInclude}{0}
+\DoxyCodeLine{  EEPROM.begin(\mbox{\hyperlink{heater_8ino_ae3ef7bba113f663df6996f286b632a3f}{EEPROM\_SIZE}}); \textcolor{comment}{// инициализация EEPROM с определенным размером}}
+
+\end{DoxyCodeInclude}
+\mbox{[}1\mbox{]}
+
+\mbox{[}1\mbox{]}
+
+\mbox{[}2\mbox{]}
+
+\mbox{[}2\mbox{]}
+
+См. определение в файле heater.\+ino строка 404
+
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{404                  \{}
+\DoxyCodeLine{405 }
+\DoxyCodeLine{407 Wire.begin(\mbox{\hyperlink{heater_8ino_a18aefd12ad84d4c33dc97923cb821e47}{I2C\_SDA}}, \mbox{\hyperlink{heater_8ino_a212ca328a6409c98f8c3dfbbe1ba561d}{I2C\_SCL}});}
+\DoxyCodeLine{409 }
+\DoxyCodeLine{410 \mbox{\hyperlink{heater_8ino_a951ac31de71c2bf701a13e5f233fc6d8}{ads}}.begin(); \textcolor{comment}{//работа с ацп модулем}}
+\DoxyCodeLine{411 }
+\DoxyCodeLine{412   \textcolor{comment}{// чтение настроек с флэш-\/памяти}}
+\DoxyCodeLine{414 \textcolor{comment}{}  EEPROM.begin(\mbox{\hyperlink{heater_8ino_ae3ef7bba113f663df6996f286b632a3f}{EEPROM\_SIZE}}); \textcolor{comment}{// инициализация EEPROM с определенным размером}}
+\DoxyCodeLine{416 \textcolor{comment}{}  \mbox{\hyperlink{heater_8ino_a650e651a1c13a09f36fd5e18e77ffd1d}{oil\_temp\_hi}} = EEPROM.read(1); \textcolor{comment}{// читаем последнее значение из флеш-\/памяти}}
+\DoxyCodeLine{417   \mbox{\hyperlink{heater_8ino_aecca4f74db192e8a3ec18fe5dbc3c9e7}{oil\_temp\_low}} = EEPROM.read(0); \textcolor{comment}{// читаем последнее значение из флеш-\/памяти}}
+\DoxyCodeLine{418   \mbox{\hyperlink{heater_8ino_addd07d63e328e78f67e350dda1870687}{water\_temp\_hi}} = EEPROM.read(2); \textcolor{comment}{// читаем последнее значение из флеш-\/памяти}}
+\DoxyCodeLine{419   \mbox{\hyperlink{heater_8ino_a84e6d2185de8ff4cf15a2bc54a1b4a13}{water\_temp\_low}} = EEPROM.read(3); \textcolor{comment}{// читаем последнее значение из флеш-\/памяти}}
+\DoxyCodeLine{420   \mbox{\hyperlink{heater_8ino_a4dc47e6d25c278d63bbd06993e8e83e9}{fuel\_tank}} = EEPROM.read (4); \textcolor{comment}{// читаем данные из памяти -\/ время дозаправки, если не сработает поплавок}}
+\DoxyCodeLine{421   \mbox{\hyperlink{heater_8ino_a7f9b9662ebeee24557b87589b8e60a1c}{period\_air\_before}} = 1000 * int(EEPROM.read (5)); \textcolor{comment}{// Читаем данные из памяти -\/ время продувки печи при старте}}
+\DoxyCodeLine{422   \mbox{\hyperlink{heater_8ino_a83eec18a9d014537a3f3d4251756c305}{period\_air\_after}} = 1000 * int(EEPROM.read (6)); \textcolor{comment}{// Читаем данные из памяти -\/ время продувки печи при останове}}
+\DoxyCodeLine{423   \mbox{\hyperlink{heater_8ino_ae66529f0edbc115bd029b667b7901ccd}{period\_air\_ing}} = 1000 * int(EEPROM.read (7)); \textcolor{comment}{// Читаем данные из памяти -\/ время от впрыска воздуха до искры}}
+\DoxyCodeLine{424   \mbox{\hyperlink{heater_8ino_a4c5ba760c8d10ec33e77cb0b86d102cc}{period\_sparkle\_ing}} = 1000 * int(EEPROM.read (8)); \textcolor{comment}{// Читаем данные из памяти -\/ время поддержки искры}}
+\DoxyCodeLine{425   \mbox{\hyperlink{heater_8ino_a2af07752a8c904c188b5c54e135bb9ec}{period\_between\_sparkle\_ing}} = 1000 * int(EEPROM.read (9)); \textcolor{comment}{// Читаем данные из памяти -\/ время между подачей искры}}
+\DoxyCodeLine{426   \mbox{\hyperlink{heater_8ino_a1bc49b5ade4146ec358c071dd349bc66}{period\_fuel\_tank}} = \mbox{\hyperlink{heater_8ino_a4dc47e6d25c278d63bbd06993e8e83e9}{fuel\_tank}}*1000;}
+\DoxyCodeLine{427   \mbox{\hyperlink{heater_8ino_a904ef248d6aaa90194f90afce1321ccf}{dht22}} = millis();}
+\DoxyCodeLine{428   \mbox{\hyperlink{heater_8ino_af86a48e8ccfc002ddf896e4eee8184b1}{T18b20\_1}} = millis();}
+\DoxyCodeLine{429   \mbox{\hyperlink{heater_8ino_a7f662104ef88b4e810394033faa0ef1d}{T18b20\_2}} = millis();}
+\DoxyCodeLine{430   \mbox{\hyperlink{heater_8ino_a9e2e5decca19ec0f003c34155f863073}{T18b20\_3}} = millis();}
+\DoxyCodeLine{431   \mbox{\hyperlink{heater_8ino_ac4d44b1c9c85a64111b203b5a73593fe}{T18b20\_4}} = millis();}
+\DoxyCodeLine{432   \mbox{\hyperlink{heater_8ino_a87bb694433b60bcf53469baa5045d0fd}{flame\_sensor}} = millis();}
+\DoxyCodeLine{433   \mbox{\hyperlink{heater_8ino_af79eb4bb68f446e4106a4da7f4def433}{fuel\_sensor}} = millis();}
+\DoxyCodeLine{434   Serial.begin(9600);}
+\DoxyCodeLine{435   dht.begin();}
+\DoxyCodeLine{436   pinMode(\mbox{\hyperlink{heater_8ino_a9e6cad9eddf70a102560a9629d9f5910}{AIRPIN}}, OUTPUT);}
+\DoxyCodeLine{437   pinMode(\mbox{\hyperlink{heater_8ino_a483bf322f1174ae333f28e7e504fcb8a}{STARTPIN}}, OUTPUT);}
+\DoxyCodeLine{438   pinMode(\mbox{\hyperlink{heater_8ino_addae15785914d6d4229b74249ef720bd}{AIRFLOWPIN}}, OUTPUT);}
+\DoxyCodeLine{439   pinMode(\mbox{\hyperlink{heater_8ino_ac066d4c9884c14054597919f7f1bb9eb}{OILHEATPIN}}, OUTPUT);}
+\DoxyCodeLine{440   pinMode(\mbox{\hyperlink{heater_8ino_a7124d36255920e918adbaf679c26597e}{OILPUMPPIN}}, OUTPUT);}
+\DoxyCodeLine{441   pinMode(\mbox{\hyperlink{heater_8ino_a67f135cff131ac0498d2032650804c9b}{FLAMESENSORPIN}}, INPUT);}
+\DoxyCodeLine{442   pinMode(\mbox{\hyperlink{heater_8ino_a0c4cd864bbbe74cb7e2a0c2e53072a00}{OILLOWSENSOREPIN}}, INPUT);}
+\DoxyCodeLine{443   pinMode(\mbox{\hyperlink{heater_8ino_ab5ee15857a6ea82986ebbce8bdb94078}{OILHIGHSENSOREPIN}}, INPUT);}
+\DoxyCodeLine{444   pinMode(\mbox{\hyperlink{heater_8ino_a80b78b8a6be9d1382872149acfdb863e}{SPARKLEPIN}}, OUTPUT);}
+\DoxyCodeLine{445   digitalWrite(\mbox{\hyperlink{heater_8ino_a80b78b8a6be9d1382872149acfdb863e}{SPARKLEPIN}}, LOW);}
+\DoxyCodeLine{446   digitalWrite(\mbox{\hyperlink{heater_8ino_a7124d36255920e918adbaf679c26597e}{OILPUMPPIN}}, LOW);}
+\DoxyCodeLine{447   digitalWrite(\mbox{\hyperlink{heater_8ino_a9e6cad9eddf70a102560a9629d9f5910}{AIRPIN}}, LOW);}
+\DoxyCodeLine{448   digitalWrite(\mbox{\hyperlink{heater_8ino_addae15785914d6d4229b74249ef720bd}{AIRFLOWPIN}}, LOW);}
+\DoxyCodeLine{449   digitalWrite(\mbox{\hyperlink{heater_8ino_a483bf322f1174ae333f28e7e504fcb8a}{STARTPIN}}, LOW);}
+\DoxyCodeLine{450   digitalWrite(\mbox{\hyperlink{heater_8ino_ac066d4c9884c14054597919f7f1bb9eb}{OILHEATPIN}}, LOW);}
+\DoxyCodeLine{451   \mbox{\hyperlink{heater_8ino_a934f4e1db2683ee5723c8eb326cb2da4}{fs1}} = digitalRead(\mbox{\hyperlink{heater_8ino_a67f135cff131ac0498d2032650804c9b}{FLAMESENSORPIN}});}
+\DoxyCodeLine{452   \textcolor{comment}{// читаем флешку если она есть}}
+\DoxyCodeLine{453   SD\_connect ();}
+\DoxyCodeLine{454     \textcolor{keywordflow}{if} (\mbox{\hyperlink{heater_8ino_ad6b0c54ec67830f6a5945d5de1a5c3d1}{sd\_con}} == 1)\{}
+\DoxyCodeLine{455 }
+\DoxyCodeLine{456     \textcolor{keywordflow}{for} (\textcolor{keywordtype}{int} i=0; i<25; i++) \{}
+\DoxyCodeLine{457       \mbox{\hyperlink{heater_8ino_a3fadb0cc5ddc58416881064bcf0db231}{net\_buffer}}[i] = 0;}
+\DoxyCodeLine{458       \mbox{\hyperlink{heater_8ino_a44d6de0ba172d868bf9235a7d472d763}{my\_buffer}}[i] = 0;}
+\DoxyCodeLine{459       \mbox{\hyperlink{heater_8ino_a6ccfccf31c7eb4d832a443dd834ce177}{pass\_buffer}}[i] = 0;}
+\DoxyCodeLine{460     \}}
+\DoxyCodeLine{461 }
+\DoxyCodeLine{462     \mbox{\hyperlink{heater_8ino_a39694d8c816730fe5b678b70afa424ed}{readFile}}(SD, \textcolor{stringliteral}{"{}/network\_name.txt"{}});}
+\DoxyCodeLine{463     \textcolor{keywordflow}{for} (\textcolor{keywordtype}{int} i=0; i<25; i++) \{}
+\DoxyCodeLine{464       \mbox{\hyperlink{heater_8ino_a3fadb0cc5ddc58416881064bcf0db231}{net\_buffer}}[i] = \mbox{\hyperlink{heater_8ino_a44d6de0ba172d868bf9235a7d472d763}{my\_buffer}}[i];}
+\DoxyCodeLine{465       \mbox{\hyperlink{heater_8ino_a44d6de0ba172d868bf9235a7d472d763}{my\_buffer}}[i] = 0;}
+\DoxyCodeLine{466     \}}
+\DoxyCodeLine{467 }
+\DoxyCodeLine{468     \mbox{\hyperlink{heater_8ino_a39694d8c816730fe5b678b70afa424ed}{readFile}}(SD, \textcolor{stringliteral}{"{}/network\_password.txt"{}});}
+\DoxyCodeLine{469     \textcolor{keywordflow}{for} (\textcolor{keywordtype}{int} i=0; i<25; i++) \{}
+\DoxyCodeLine{470       \mbox{\hyperlink{heater_8ino_a6ccfccf31c7eb4d832a443dd834ce177}{pass\_buffer}}[i] = \mbox{\hyperlink{heater_8ino_a44d6de0ba172d868bf9235a7d472d763}{my\_buffer}}[i];}
+\DoxyCodeLine{471       \mbox{\hyperlink{heater_8ino_a44d6de0ba172d868bf9235a7d472d763}{my\_buffer}}[i] = 0;}
+\DoxyCodeLine{472     \}}
+\DoxyCodeLine{473 }
+\DoxyCodeLine{474     \mbox{\hyperlink{heater_8ino_a39694d8c816730fe5b678b70afa424ed}{readFile}}(SD, \textcolor{stringliteral}{"{}/oil\_number.txt"{}});}
+\DoxyCodeLine{475     \textcolor{keywordflow}{for} (\textcolor{keywordtype}{int} i=0; i<41; i++) \{}
+\DoxyCodeLine{476       \mbox{\hyperlink{heater_8ino_a3131e1c6d8070bcb0dca32989ed94a23}{oil\_buffer}}[i] = \mbox{\hyperlink{heater_8ino_a44d6de0ba172d868bf9235a7d472d763}{my\_buffer}}[i];}
+\DoxyCodeLine{477       \mbox{\hyperlink{heater_8ino_a44d6de0ba172d868bf9235a7d472d763}{my\_buffer}}[i] = 0;}
+\DoxyCodeLine{478     \}}
+\DoxyCodeLine{479 }
+\DoxyCodeLine{480     \textcolor{keywordflow}{if} (\mbox{\hyperlink{heater_8ino_a3131e1c6d8070bcb0dca32989ed94a23}{oil\_buffer}}[0] != \textcolor{charliteral}{'!'})\{  \textcolor{comment}{//если адрес не начинается с ключевого символа воскл знака, то адреса нет.}}
+\DoxyCodeLine{481       oil\_temp\_flag = 0; \textcolor{comment}{// Флаг -\/ нет датчика на линии.}}
+\DoxyCodeLine{482     \}}
+\DoxyCodeLine{483     \textcolor{keywordflow}{if} (\mbox{\hyperlink{heater_8ino_a3131e1c6d8070bcb0dca32989ed94a23}{oil\_buffer}}[0] == \textcolor{charliteral}{'!'})\{}
+\DoxyCodeLine{484       oil\_temp\_flag = 1; \textcolor{comment}{// Флаг -\/ нет датчика на линии.}}
+\DoxyCodeLine{485       \}}
+\DoxyCodeLine{486     number\_obrabotka (\mbox{\hyperlink{heater_8ino_a3131e1c6d8070bcb0dca32989ed94a23}{oil\_buffer}});}
+\DoxyCodeLine{487     \textcolor{keywordflow}{for} (\textcolor{keywordtype}{int} i=0; i<8; i++)\{}
+\DoxyCodeLine{488        addr\_oil\_temp[i]=t[i];}
+\DoxyCodeLine{489        t[i]=0;}
+\DoxyCodeLine{490     \}}
+\DoxyCodeLine{491 }
+\DoxyCodeLine{492   \textcolor{comment}{/*  readFile(SD, "{}/in\_water\_number.txt"{});}}
+\DoxyCodeLine{493 \textcolor{comment}{    for (int i=0; i<40; i++) \{}}
+\DoxyCodeLine{494 \textcolor{comment}{      in\_water\_buffer[i] = my\_buffer[i];}}
+\DoxyCodeLine{495 \textcolor{comment}{      my\_buffer[i] = 0;}}
+\DoxyCodeLine{496 \textcolor{comment}{    \}}}
+\DoxyCodeLine{497 \textcolor{comment}{    if (in\_water\_buffer[0] != '!')\{  //если адрес не начинается с ключевого символа воскл знака, то адреса нет.}}
+\DoxyCodeLine{498 \textcolor{comment}{      in\_water\_temp\_flag = 0; // Флаг -\/ нет датчика на линии.}}
+\DoxyCodeLine{499 \textcolor{comment}{    \}}}
+\DoxyCodeLine{500 \textcolor{comment}{    if (in\_water\_buffer[0] == '!')\{}}
+\DoxyCodeLine{501 \textcolor{comment}{      in\_water\_temp\_flag = 1; // Флаг -\/ нет датчика на линии.}}
+\DoxyCodeLine{502 \textcolor{comment}{      number\_obrabotka (in\_water\_buffer);}}
+\DoxyCodeLine{503 \textcolor{comment}{    \}}}
+\DoxyCodeLine{504 \textcolor{comment}{}}
+\DoxyCodeLine{505 \textcolor{comment}{    readFile(SD, "{}/out\_water\_number.txt"{});}}
+\DoxyCodeLine{506 \textcolor{comment}{    for (int i=0; i<40; i++) \{}}
+\DoxyCodeLine{507 \textcolor{comment}{      out\_water\_buffer[i] = my\_buffer[i];}}
+\DoxyCodeLine{508 \textcolor{comment}{      my\_buffer[i] = 0;}}
+\DoxyCodeLine{509 \textcolor{comment}{    \}}}
+\DoxyCodeLine{510 \textcolor{comment}{    if (out\_water\_buffer[0] != '!')\{  //если адрес не начинается с ключевого символа воскл знака, то адреса нет.}}
+\DoxyCodeLine{511 \textcolor{comment}{      out\_water\_temp\_flag = 0; // Флаг -\/ нет датчика на линии.}}
+\DoxyCodeLine{512 \textcolor{comment}{    \}}}
+\DoxyCodeLine{513 \textcolor{comment}{    if (out\_water\_buffer[0] == '!')\{}}
+\DoxyCodeLine{514 \textcolor{comment}{      out\_water\_temp\_flag = 1; // Флаг -\/ нет датчика на линии.}}
+\DoxyCodeLine{515 \textcolor{comment}{      number\_obrabotka (out\_water\_buffer);}}
+\DoxyCodeLine{516 \textcolor{comment}{    \}*/}}
+\DoxyCodeLine{517 }
+\DoxyCodeLine{518     \mbox{\hyperlink{heater_8ino_a39694d8c816730fe5b678b70afa424ed}{readFile}}(SD, \textcolor{stringliteral}{"{}/air\_number.txt"{}});}
+\DoxyCodeLine{519     \textcolor{keywordflow}{for} (\textcolor{keywordtype}{int} i=0; i<41; i++) \{}
+\DoxyCodeLine{520       \mbox{\hyperlink{heater_8ino_a07b4636215460a707fd18687362b9872}{air\_buffer}}[i] = \mbox{\hyperlink{heater_8ino_a44d6de0ba172d868bf9235a7d472d763}{my\_buffer}}[i];}
+\DoxyCodeLine{521       \mbox{\hyperlink{heater_8ino_a44d6de0ba172d868bf9235a7d472d763}{my\_buffer}}[i] = 0;}
+\DoxyCodeLine{522     \}}
+\DoxyCodeLine{523     \textcolor{keywordflow}{if} (\mbox{\hyperlink{heater_8ino_a07b4636215460a707fd18687362b9872}{air\_buffer}}[0] != \textcolor{charliteral}{'!'})\{  \textcolor{comment}{//если адрес не начинается с ключевого символа воскл знака, то адреса нет.}}
+\DoxyCodeLine{524       air\_temp\_flag = 0; \textcolor{comment}{// Флаг -\/ нет датчика на линии.}}
+\DoxyCodeLine{525           \}}
+\DoxyCodeLine{526     \textcolor{keywordflow}{if} (\mbox{\hyperlink{heater_8ino_a07b4636215460a707fd18687362b9872}{air\_buffer}}[0] == \textcolor{charliteral}{'!'})\{}
+\DoxyCodeLine{527       air\_temp\_flag = 1; \textcolor{comment}{// Флаг -\/ есть датчик на линии.}}
+\DoxyCodeLine{528           \}}
+\DoxyCodeLine{529       number\_obrabotka (\mbox{\hyperlink{heater_8ino_a07b4636215460a707fd18687362b9872}{air\_buffer}});}
+\DoxyCodeLine{530       \textcolor{keywordflow}{for} (\textcolor{keywordtype}{int} i=0; i<8; i++)\{}
+\DoxyCodeLine{531          addr\_air\_temp[i]=t[i];}
+\DoxyCodeLine{532          t[i]=0;}
+\DoxyCodeLine{533       \}}
+\DoxyCodeLine{534 }
+\DoxyCodeLine{535 }
+\DoxyCodeLine{536     Serial.printf(\textcolor{stringliteral}{"{}SSID="{}});}
+\DoxyCodeLine{537     Serial.println(ssid);}
+\DoxyCodeLine{538     Serial.printf(\textcolor{stringliteral}{"{}PASS="{}});}
+\DoxyCodeLine{539     Serial.println(password);}
+\DoxyCodeLine{540     Serial.printf(\textcolor{stringliteral}{"{}air\_number="{}});}
+\DoxyCodeLine{541     Serial.println(air\_number\_18b20);}
+\DoxyCodeLine{542 }
+\DoxyCodeLine{543   \}}
+\DoxyCodeLine{544   \textcolor{keywordflow}{else} \{}
+\DoxyCodeLine{545     Serial.println(\textcolor{stringliteral}{"{}error SD connect"{}});}
+\DoxyCodeLine{546   \}}
+\DoxyCodeLine{547 }
+\DoxyCodeLine{548 }
+\DoxyCodeLine{549   \textcolor{comment}{// инициализация дисплея}}
+\DoxyCodeLine{550   \mbox{\hyperlink{heater_8ino_aef0db3b3e1fdec09928b07426cefaa0d}{obnulenie}}();}
+\DoxyCodeLine{551 }
+\DoxyCodeLine{552 }
+\DoxyCodeLine{553   \textcolor{comment}{// настраиваем сеть}}
+\DoxyCodeLine{554   mqttReconnectTimer = xTimerCreate(\textcolor{stringliteral}{"{}mqttTimer"{}}, pdMS\_TO\_TICKS(2000), pdFALSE, (\textcolor{keywordtype}{void}*)0, \textcolor{keyword}{reinterpret\_cast<}TimerCallbackFunction\_t\textcolor{keyword}{>}(connectToMqtt));}
+\DoxyCodeLine{555   wifiReconnectTimer = xTimerCreate(\textcolor{stringliteral}{"{}wifiTimer"{}}, pdMS\_TO\_TICKS(2000), pdFALSE, (\textcolor{keywordtype}{void}*)0, \textcolor{keyword}{reinterpret\_cast<}TimerCallbackFunction\_t\textcolor{keyword}{>}(\mbox{\hyperlink{heater_8ino_ad6afb32bbdf9918dca4c2b4de623ab06}{connectToWifi}}));}
+\DoxyCodeLine{556   \mbox{\hyperlink{heater_8ino_ad6afb32bbdf9918dca4c2b4de623ab06}{connectToWifi}}();}
+\DoxyCodeLine{557   WiFi.onEvent(WiFiEvent);}
+\DoxyCodeLine{558 }
+\DoxyCodeLine{559   \mbox{\hyperlink{heater_8ino_aed6ff0a8b8a5d26a2cabe6a8665e22c7}{mqttClient}}.onConnect(onMqttConnect);}
+\DoxyCodeLine{560   \mbox{\hyperlink{heater_8ino_aed6ff0a8b8a5d26a2cabe6a8665e22c7}{mqttClient}}.onDisconnect(onMqttDisconnect);}
+\DoxyCodeLine{561   \mbox{\hyperlink{heater_8ino_aed6ff0a8b8a5d26a2cabe6a8665e22c7}{mqttClient}}.onSubscribe(onMqttSubscribe);}
+\DoxyCodeLine{562   \mbox{\hyperlink{heater_8ino_aed6ff0a8b8a5d26a2cabe6a8665e22c7}{mqttClient}}.onUnsubscribe(onMqttUnsubscribe);}
+\DoxyCodeLine{563   \mbox{\hyperlink{heater_8ino_aed6ff0a8b8a5d26a2cabe6a8665e22c7}{mqttClient}}.onMessage(onMqttMessage);}
+\DoxyCodeLine{564   \textcolor{comment}{//mqttClient.onPublish(onMqttPublish);}}
+\DoxyCodeLine{565   \mbox{\hyperlink{heater_8ino_aed6ff0a8b8a5d26a2cabe6a8665e22c7}{mqttClient}}.setServer(\mbox{\hyperlink{heater_8ino_a0b26496e970e561304bd542f701fe223}{MQTT\_HOST}}, \mbox{\hyperlink{heater_8ino_aa8632baff6bbb5004385998918f1e6bd}{MQTT\_PORT}});}
+\DoxyCodeLine{566 \}}
+
+\end{DoxyCode}
+
+
+\doxysubsection{Переменные}
+\mbox{\Hypertarget{heater_8ino_aed6ff0a8b8a5d26a2cabe6a8665e22c7}\label{heater_8ino_aed6ff0a8b8a5d26a2cabe6a8665e22c7}} 
+\index{heater.ino@{heater.ino}!mqttClient@{mqttClient}}
+\index{mqttClient@{mqttClient}!heater.ino@{heater.ino}}
+\doxysubsubsection{\texorpdfstring{mqttClient}{mqttClient}}
+{\footnotesize\ttfamily Async\+Mqtt\+Client mqtt\+Client}
+
+создаем объекты для управления MQTT-\/клиентом\+: Создаем объект для управления MQTT-\/клиентом и таймеры, которые понадобятся для повторного подключения к MQTT-\/брокеру или Wi\+Fi-\/роутеру, если связь вдруг оборвется. 
+
+См. определение в файле heater.\+ino строка 67
+

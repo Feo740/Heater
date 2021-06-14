@@ -1,3 +1,9 @@
+/**@file obnovlenie.ino */
+
+/*!
+ \brief функция обновления экрана по всем параметрам
+  \details приводит содержимое окон данных экрана к актуальным
+   */
 void obnovlenie (){
   String var;
   uint16_t packetIdPub2;
@@ -18,7 +24,7 @@ void obnovlenie (){
   if (y == 0){
     var = "0";
     packetIdPub2 = mqttClient.publish("esp32/AUTO", 1, true, var.c_str());
-    }  
+    }
 
 // Обновляем положение тумблера канала подачи воздуха "A_on"
     if (a == 1){
@@ -28,8 +34,8 @@ void obnovlenie (){
   if (a == 0){
     var = "0";
     packetIdPub2 = mqttClient.publish("esp32/AUTO", 1, true, var.c_str());
-    }  
- 
+    }
+
 
 //Обноляем положение тумблера канала нагревателя "oh"
     if (oh == 1){
@@ -39,7 +45,7 @@ void obnovlenie (){
     if (oh == 0){
     var = "0";
     packetIdPub2 = mqttClient.publish("esp32/oh", 1, true, var.c_str());
-    }  
+    }
 
 //Обновляем положение тумблера канала поддува "AF_on"
     if (af == 1){
@@ -105,4 +111,4 @@ void obnovlenie (){
       packetIdPub2 = mqttClient.publish("esp32/system", 1, true, var.c_str());
       }
 
-}      
+}
