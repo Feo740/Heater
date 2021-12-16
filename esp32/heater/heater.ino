@@ -489,6 +489,24 @@ ads.begin(); //работа с ацп модулем
        t[i]=0;
     }
 
+    readFile(SD, "/air_number.txt");
+    for (int i=0; i<41; i++) {
+      air_buffer[i] = my_buffer[i];
+      my_buffer[i] = 0;
+    }
+    if (air_buffer[0] != '!'){  //если адрес не начинается с ключевого символа воскл знака, то адреса нет.
+      air_temp_flag = 0; // Флаг - нет датчика на линии.
+          }
+    if (air_buffer[0] == '!'){
+      air_temp_flag = 1; // Флаг - есть датчик на линии.
+          }
+      number_obrabotka (air_buffer);
+      for (int i=0; i<8; i++){
+         addr_air_temp[i]=t[i];
+         t[i]=0;
+      }
+
+
   /*  readFile(SD, "/in_water_number.txt");
     for (int i=0; i<40; i++) {
       in_water_buffer[i] = my_buffer[i];
@@ -515,30 +533,16 @@ ads.begin(); //работа с ацп модулем
       number_obrabotka (out_water_buffer);
     }*/
 
-    readFile(SD, "/air_number.txt");
-    for (int i=0; i<41; i++) {
-      air_buffer[i] = my_buffer[i];
-      my_buffer[i] = 0;
-    }
-    if (air_buffer[0] != '!'){  //если адрес не начинается с ключевого символа воскл знака, то адреса нет.
-      air_temp_flag = 0; // Флаг - нет датчика на линии.
-          }
-    if (air_buffer[0] == '!'){
-      air_temp_flag = 1; // Флаг - есть датчик на линии.
-          }
-      number_obrabotka (air_buffer);
-      for (int i=0; i<8; i++){
-         addr_air_temp[i]=t[i];
-         t[i]=0;
-      }
 
 
     Serial.printf("SSID=");
     Serial.println(ssid);
     Serial.printf("PASS=");
     Serial.println(password);
-    Serial.printf("air_number=");
-    Serial.println(air_number_18b20);
+    /*Serial.printf("air_number=");
+    Serial.println(air_number_18b20);*/
+    Serial.printf("oil_number=");
+    Serial.println(oil_number_18b20);
 
   }
   else {
@@ -556,6 +560,7 @@ ads.begin(); //работа с ацп модулем
   connectToWifi();
   WiFi.onEvent(WiFiEvent);
 
+
   mqttClient.onConnect(onMqttConnect);
   mqttClient.onDisconnect(onMqttDisconnect);
   mqttClient.onSubscribe(onMqttSubscribe);
@@ -563,6 +568,11 @@ ads.begin(); //работа с ацп модулем
   mqttClient.onMessage(onMqttMessage);
   //mqttClient.onPublish(onMqttPublish);
   mqttClient.setServer(MQTT_HOST, MQTT_PORT);
+
+  IPAddress ip = WiFi.localIP();
+  Serial.print("page0.ip.txt=\"");
+  Serial.print(ip);
+  Serial.print(String("\"") + String("\xFF\xFF\xFF"));
 }
 
 
@@ -612,11 +622,11 @@ void obnulenie() {
   Serial.print(var);
   Serial.print("ref page2\xFF\xFF\xFF");
 
-
+/*
   Serial.print("page0.ip.txt=\"");
   Serial.print(ip);
   Serial.print(String("\"") + String("\xFF\xFF\xFF"));
-  //Serial.print("ref page0\xFF\xFF\xFF");
+  //Serial.print("ref page0\xFF\xFF\xFF"); */
   x = 0;
   y = 0;
   x1 = 0;
@@ -1431,7 +1441,7 @@ packetIdPub2 = mqttClient.publish("esp32/DHT_Temp", 1, true, var.c_str());
   if ((millis() - fuel_sensor) >= period_fuel_sensor) {
     fuel_sensor = millis();
     fuellevel();
-    //почитаем датчик ацп
+/*    //почитаем датчик ацп
 
     adc0 = ads.readADC_SingleEnded(0);
     adc1 = ads.readADC_SingleEnded(1);
@@ -1448,7 +1458,7 @@ packetIdPub2 = mqttClient.publish("esp32/DHT_Temp", 1, true, var.c_str());
     Serial.print("AIN1: "); Serial.print(adc1); Serial.print("  "); Serial.print(volts1); Serial.println("V");
     Serial.print("AIN2: "); Serial.print(adc2); Serial.print("  "); Serial.print(volts2); Serial.println("V");
     Serial.print("AIN3: "); Serial.print(adc3); Serial.print("  "); Serial.print(volts3); Serial.println("V");
-
+*/
     //закончили прочитать
   }
 
