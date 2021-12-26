@@ -350,11 +350,23 @@ void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties 
     if (messageTemp == "1") {
       All_on();
       Serial.print("page1.bt6.val=0\xFF\xFF\xFF");
-      Serial.print("ref page1\xFF\xFF\xFF");
+      //Serial.print("ref page1\xFF\xFF\xFF");
     } else {
       All_off();
       Serial.print("page1.bt6.val=1\xFF\xFF\xFF");
-      Serial.print("ref page1\xFF\xFF\xFF");
+    //  Serial.print("ref page1\xFF\xFF\xFF");
+    }
+  }
+
+  if (strcmp(topic, "phone/AUTO") == 0) {
+    if (messageTemp == "1") {
+      All_on();
+      Serial.print("page1.bt6.val=0\xFF\xFF\xFF");
+      //Serial.print("ref page1\xFF\xFF\xFF");
+    } else {
+      All_off();
+      Serial.print("page1.bt6.val=1\xFF\xFF\xFF");
+    //  Serial.print("ref page1\xFF\xFF\xFF");
     }
   }
 }
@@ -915,11 +927,7 @@ void All_off(){
       }
   }
 
-  /*!
-   \brief функция включения системы
-    \details Функция обрабатывает ситуацию получения от монитора команды
-    тумблер "все вкл" от дисплея
-     */
+
 void Read_18b20(byte addr[8], int t, byte flag){
   //переменные для датчиков температуры
   byte i;
@@ -982,9 +990,28 @@ void Read_18b20(byte addr[8], int t, byte flag){
   result = "**.**";
 }
   indikacia(result, t);
-
-  // публикуем MQTT-сообщение в топике «esp32/temperature»
+if (t == 17){
   uint16_t packetIdPub2 = mqttClient.publish("esp32/temperature", 1, true, result.c_str());
+}
+if (t == 0){
+  uint16_t packetIdPub2 = mqttClient.publish("esp32/temperature1", 1, true, result.c_str());
+}
+/*  // публикуем MQTT-сообщение в  соответствующем топике «esp32/temperatureX»
+  switch(t){
+        case 17:
+        uint16_t packetIdPub2 = mqttClient.publish("esp32/temperature", 1, true, result.c_str());
+        break;
+        case 0:
+        uint16_t packetIdPub2 = mqttClient.publish("esp32/temperature1", 1, true, result.c_str());
+        break;
+        case 3:
+        uint16_t packetIdPub2 = mqttClient.publish("esp32/temperature2", 1, true, result.c_str());
+        break;
+        case 12:
+        uint16_t packetIdPub2 = mqttClient.publish("esp32/temperature3", 1, true, result.c_str());
+        break;
+      }*/
+
   return;
 }
 }
@@ -1046,6 +1073,8 @@ if ((millis() - blink1) >= period_blink1) {
     if (SW_var.equals("AUTO_on") && x == 0) {
       Serial.print("page1.bt5.val=1\xFF\xFF\xFF");
     }
+
+
     if (SW_var.equals("AUTO_off")) {
       y = 0;
       var = "0";
