@@ -302,8 +302,10 @@ void WiFiEvent(WiFiEvent_t event) {
 // в этом фрагменте добавляем топики,
 // на которые будет подписываться ESP32:
 void onMqttConnect(bool sessionPresent) {
-  // подписываем ESP32 на топик «phone/ALL»:
+  // подписываем ESP32 на топики «phone/ALL», "phone/AUTO":
   uint16_t packetIdSub = mqttClient.subscribe("phone/ALL", 0);
+  uint16_t packetIdSub1 = mqttClient.subscribe("phone/AUTO", 0);
+
 }
 
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
@@ -347,7 +349,7 @@ void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties 
   }
   // проверяем, получено ли MQTT-сообщение в топике «phone/ALL»:
   if (strcmp(topic, "phone/ALL") == 0) {
-    if (messageTemp == "1") {
+    if (messageTemp == "1" && x != 2) {
       All_on();
       Serial.print("page1.bt6.val=0\xFF\xFF\xFF");
       //Serial.print("ref page1\xFF\xFF\xFF");
@@ -360,13 +362,18 @@ void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties 
 
   if (strcmp(topic, "phone/AUTO") == 0) {
     if (messageTemp == "1") {
-      All_on();
-      Serial.print("page1.bt6.val=0\xFF\xFF\xFF");
+      AUTO_on();
+      Serial.print("page1.bt5.val=0\xFF\xFF\xFF");
       //Serial.print("ref page1\xFF\xFF\xFF");
     } else {
-      All_off();
-      Serial.print("page1.bt6.val=1\xFF\xFF\xFF");
-    //  Serial.print("ref page1\xFF\xFF\xFF");
+      Serial.print("page1.p2.pic=4\xFF\xFF\xFF");
+      String var = String("page0.t14.txt=\"") + String("manual") + String("\"") + String("\xFF\xFF\xFF");
+      Serial.print(var);
+      Serial.print("page1.bt5.val=1\xFF\xFF\xFF");
+      //Serial.print("ref page0\xFF\xFF\xFF"); //отправляем сформированную строку в дисплей
+      ostanov();
+
+      //  Serial.print("ref page1\xFF\xFF\xFF");
     }
   }
 }
@@ -887,6 +894,9 @@ void ostanov() {
   Serial.print("bt6.val=1\xFF\xFF\xFF"); // переводим тумблер "подкачка выкл"
   Serial.print("page1.p7.pic=4\xFF\xFF\xFF"); // лампочку гасим
   x = 0;
+  var = "0";
+  uint16_t packetIdPub2 = mqttClient.publish("esp32/ALL", 1, true, var.c_str());
+  packetIdPub2 = mqttClient.publish("esp32/AUTO_on", 1, true, var.c_str());
 }
 
 /*!
@@ -923,9 +933,44 @@ void All_off(){
         Serial.print("ref page1\xFF\xFF\xFF");
         var = "0";
         uint16_t packetIdPub2 = mqttClient.publish("esp32/ALL", 1, true, var.c_str());
+        packetIdPub2 = mqttClient.publish("esp32/AUTO_on", 1, true, var.c_str());
         obnulenie();
       }
   }
+
+
+  /*!
+   \brief функция автоматический режим включить
+    \details Функция обрабатывает процедуру включения горелки в автоматическом режиме
+     */
+void AUTO_on(){
+  if(x == 1 && x1 == 0){
+  var = "1";
+  uint16_t packetIdPub2 = mqttClient.publish("esp32/AUTO_on", 1, true, var.c_str());
+  y = 1; // переводим флаг "автоматический режим"
+  Serial.print("page1.p2.pic=5\xFF\xFF\xFF"); // зеленая лампочка
+  String var = String("page0.t14.txt=\"") + String("auto") + String("\"") + String("\xFF\xFF\xFF"); // пишем в дисплей строку режима
+  Serial.print(var); //индикация на дисплее "автоматический"
+  //Serial.print("ref page0\xFF\xFF\xFF"); // обновить страницу
+  x1 = 2;
+  }
+  if (x == 0){
+    Serial.print("page1.bt5.val=1\xFF\xFF\xFF");
+    var = "0";
+    uint16_t packetIdPub2 = mqttClient.publish("esp32/AUTO_on", 1, true, var.c_str());
+  }
+}
+
+void AUTO_off(){
+  y = 0;
+  var = "0";
+  uint16_t packetIdPub2 = mqttClient.publish("esp32/AUTO_on", 1, true, var.c_str());
+  Serial.print("page1.p2.pic=4\xFF\xFF\xFF");
+  String var = String("page0.t14.txt=\"") + String("manual") + String("\"") + String("\xFF\xFF\xFF");
+  Serial.print(var);
+  //Serial.print("ref page0\xFF\xFF\xFF"); //отправляем сформированную строку в дисплей
+  ostanov();
+}
 
 
 void Read_18b20(byte addr[8], int t, byte flag){
@@ -1060,30 +1105,12 @@ if ((millis() - blink1) >= period_blink1) {
     }
 
     //режим работы автоматический или ручной?
-    if (SW_var.equals("AUTO_on") && x == 1 && x1 == 0) { //режим системы вкл, тумблер авто-вкл и горелка не горит
-      y = 1; // переводим флаг "автоматический режим"
-      var = "1";
-      uint16_t packetIdPub2 = mqttClient.publish("esp32/AUTO_on", 1, true, var.c_str());
-      Serial.print("page1.p2.pic=5\xFF\xFF\xFF"); // зеленая лампочка
-      String var = String("page0.t14.txt=\"") + String("auto") + String("\"") + String("\xFF\xFF\xFF"); // пишем в дисплей строку режима
-      Serial.print(var); //индикация на дисплее "автоматический"
-      //Serial.print("ref page0\xFF\xFF\xFF"); // обновить страницу
-      x1 = 2;
+    if (SW_var.equals("AUTO_on")) { //режим системы вкл, тумблер авто-вкл и горелка не горит
+      AUTO_on();
     }
-    if (SW_var.equals("AUTO_on") && x == 0) {
-      Serial.print("page1.bt5.val=1\xFF\xFF\xFF");
-    }
-
 
     if (SW_var.equals("AUTO_off")) {
-      y = 0;
-      var = "0";
-      uint16_t packetIdPub2 = mqttClient.publish("esp32/AUTO_on", 1, true, var.c_str());
-      Serial.print("page1.p2.pic=4\xFF\xFF\xFF");
-      String var = String("page0.t14.txt=\"") + String("manual") + String("\"") + String("\xFF\xFF\xFF");
-      Serial.print(var);
-      //Serial.print("ref page0\xFF\xFF\xFF"); //отправляем сформированную строку в дисплей
-      ostanov();
+      AUTO_off();
     }
 
     // канал подачи воздуха?
