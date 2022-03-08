@@ -305,6 +305,7 @@ void onMqttConnect(bool sessionPresent) {
   // подписываем ESP32 на топики «phone/ALL», "phone/AUTO":
   uint16_t packetIdSub = mqttClient.subscribe("phone/ALL", 0);
   uint16_t packetIdSub1 = mqttClient.subscribe("phone/AUTO", 0);
+  uint16_t packetIdSub1 = mqttClient.subscribe("phone/fuel", 0);
 
 }
 
@@ -681,14 +682,20 @@ void fuellevel() {
   if (olsp == 0 && ohsp == 0) { // оба показывают дно
     indikacia("low", 23);
     bl1 = 0;
-  }
+    String var = "0";
+    uint16_t packetIdPub2 = mqttClient.publish("esp32/fuel", 1, true, var.c_str());
+    }
   if (olsp == 1 && ohsp == 0) {
     indikacia("middle", 23);
     bl1 = 2;
+    var = "50";
+    uint16_t packetIdPub2 = mqttClient.publish("esp32/fuel", 1, true, var.c_str());
   }
   if (olsp == 1 && ohsp == 1) {
     indikacia("hi", 23);
     bl1 = 1;
+    var = "100";
+    uint16_t packetIdPub2 = mqttClient.publish("esp32/fuel", 1, true, var.c_str());
     if (oil != 0) { // если флаг насоса подкачки масла пока зывает включенны насос
       Serial.print("bt3.val=1\xFF\xFF\xFF"); // переводим тумблер "подкачка выкл"
       Serial.print("page1.p1.pic=4\xFF\xFF\xFF"); // лампочку гасим
