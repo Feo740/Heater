@@ -305,7 +305,7 @@ void onMqttConnect(bool sessionPresent) {
   // подписываем ESP32 на топики «phone/ALL», "phone/AUTO":
   uint16_t packetIdSub = mqttClient.subscribe("phone/ALL", 0);
   uint16_t packetIdSub1 = mqttClient.subscribe("phone/AUTO", 0);
-  uint16_t packetIdSub1 = mqttClient.subscribe("phone/fuel", 0);
+  uint16_t packetIdSub2 = mqttClient.subscribe("phone/fuel", 0);
 
 }
 
@@ -365,20 +365,48 @@ void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties 
     if (messageTemp == "1") {
       AUTO_on();
       Serial.print("page1.bt5.val=0\xFF\xFF\xFF");
-      //Serial.print("ref page1\xFF\xFF\xFF");
-    } else {
+      } else {
       Serial.print("page1.p2.pic=4\xFF\xFF\xFF");
       String var = String("page0.t14.txt=\"") + String("manual") + String("\"") + String("\xFF\xFF\xFF");
       Serial.print(var);
       Serial.print("page1.bt5.val=1\xFF\xFF\xFF");
-      //Serial.print("ref page0\xFF\xFF\xFF"); //отправляем сформированную строку в дисплей
       ostanov();
-
-      //  Serial.print("ref page1\xFF\xFF\xFF");
     }
   }
+  if (strcmp(topic, "phone/fuel") == 0) {
+    if (messageTemp == "1") {
+      fuel_obrabotka_on();
+    }else {
+      fuel_obrabotka_off();
+    }
+  }
+
 }
 
+  void fuel_obrabotka_on(){
+    if(x == 1 && (bl1 == 0 || bl1 == 2)){
+    oil = 1;
+    fuel_tank_var = millis(); // запускаем таймер предохранительный
+    var = "1";
+    uint16_t packetIdPub2 = mqttClient.publish("esp32/oil", 1, true, var.c_str());
+    digitalWrite(OILPUMPPIN, HIGH);
+    Serial.print("p1.pic=5\xFF\xFF\xFF");
+    Serial.print("bt3.val=0\xFF\xFF\xFF"); // переводим тумблер "подкачка вкл"
+    indikacia("oilpump", 15);
+    }
+    if((x == 0 || bl1 == 1)){
+    fuel_obrabotka_off();
+    }
+  }
+
+  void fuel_obrabotka_off(){
+    oil = 0; // выключаем флаг насоса подкачки масла
+    var = "0";
+    uint16_t packetIdPub2 = mqttClient.publish("esp32/oil", 1, true, var.c_str()); // синхронизация с НА
+    digitalWrite(OILPUMPPIN, LOW); // выключили насос подкачки
+    Serial.print("p1.pic=4\xFF\xFF\xFF"); // лампочку гасим
+    Serial.print("bt3.val=1\xFF\xFF\xFF"); // переводим тумблер "подкачка выкл"
+  }
 // функция проверяет подключена ли sd-карточка
 void SD_connect (){
   //Работа с флешкартой
@@ -673,10 +701,7 @@ void fuellevel() {
     x = 2; // состояние системы в "авария"
     bl1 = 3; // состояние датчика уровня масла "неисправен"
     if (oil ==1){
-    Serial.print("bt3.val=1\xFF\xFF\xFF"); // переводим тумблер "подкачка выкл"
-    Serial.print("page1.p1.pic=4\xFF\xFF\xFF"); // лампочку гасим
-    digitalWrite(OILPUMPPIN, LOW); // выключили насос подкачки
-    oil = 0;  // выключаем флаг насоса подкачки масла
+      fuel_obrabotka_off();
     }
   }
   if (olsp == 0 && ohsp == 0) { // оба показывают дно
@@ -734,22 +759,14 @@ void zapusk() {
       fuellevel();
     }
     if (oil == 0) {
-      oil = 1;
-      fuel_tank_var = millis(); // запускаем таймер предохранительный
-      Serial.print("bt3.val=0\xFF\xFF\xFF"); // переводим тумблер "подкачка вкл"
-      Serial.print("page1.p1.pic=5\xFF\xFF\xFF"); // лампочку зажигаем
-      digitalWrite(OILPUMPPIN, HIGH); // Включили насос подкачки
-      indikacia("oilpump", 15);
+      fuel_obrabotka_on();
     }
   }
 
   //2й шаг проверка температуры масла
   if (bl1 == 1 && temp_sensor < oil_temp_low && x != 2) { //если уровень масла достаточный, температура масла ниже минимальной
     if (oil == 1) { //если вдруг не выключен наcос подкачки масла
-      oil = 0;
-      Serial.print("bt3.val=1\xFF\xFF\xFF"); // переводим тумблер "подкачка выкл"
-      Serial.print("page1.p1.pic=4\xFF\xFF\xFF"); // лампочку гасим
-      digitalWrite(OILPUMPPIN, LOW); // Выключили насос подкачки
+      fuel_obrabotka_off();
     }
     if (oh == 0) { // если тен подогрева выключен
       digitalWrite(OILHEATPIN, HIGH); // включаем тэн
@@ -890,9 +907,7 @@ void ostanov() {
   digitalWrite(OILHEATPIN, LOW); // выключаем тэн
   }
   //выключаем подкачку
-  Serial.print("bt3.val=1\xFF\xFF\xFF"); // переводим тумблер "подкачка выкл"
-  Serial.print("page1.p1.pic=4\xFF\xFF\xFF"); // лампочку гасим
-  digitalWrite(OILPUMPPIN, LOW); // Выключили насос подкачки
+  fuel_obrabotka_off();
   //Выключаем режим "авто"
   Serial.print("bt5.val=1\xFF\xFF\xFF"); // переводим тумблер "подкачка выкл"
   Serial.print("page1.p2.pic=4\xFF\xFF\xFF"); // лампочку гасим
@@ -1187,23 +1202,11 @@ if ((millis() - blink1) >= period_blink1) {
     }
 
     //канал накачки масла?
-    if (SW_var.equals("OILPUMP_on") && x == 1 && (bl1 == 0 || bl1 == 2)) {
-      oil = 1;
-      fuel_tank_var = millis(); // запускаем таймер предохранительный
-      var = "1";
-      uint16_t packetIdPub2 = mqttClient.publish("esp32/oil", 1, true, var.c_str());
-      digitalWrite(OILPUMPPIN, HIGH);
-      Serial.print("p1.pic=5\xFF\xFF\xFF");
-    }
-    if (SW_var.equals("OILPUMP_on") && (x == 0 || bl1 == 1)) {
-      Serial.print("page1.bt3.val=1\xFF\xFF\xFF");
+    if (SW_var.equals("OILPUMP_on")) {
+      fuel_obrabotka_on();
     }
     if (SW_var.equals("OILPUMP_off")) {
-      oil = 0;
-      var = "0";
-      uint16_t packetIdPub2 = mqttClient.publish("esp32/oil", 1, true, var.c_str());
-      digitalWrite(OILPUMPPIN, LOW);
-      Serial.print("p1.pic=4\xFF\xFF\xFF");
+      fuel_obrabotka_off();
     }
 
     //Канал искры?
