@@ -1018,22 +1018,10 @@ void Read_18b20(byte addr[8], int t, byte flag){
   ds.select(addr);
   ds.write(0xBE);         // читаем результат
 
-/*  Serial.print("  Data = ");
-  Serial.print(present, HEX);
-  Serial.print(" ");*/
   for ( i = 0; i < 9; i++) {           // нам требуется 9 байтов
     data[i] = ds.read();
-    /*Serial.print(data[i], HEX);
-    Serial.print(" ");*/
   }
-  /*Serial.print(" CRC=");
-  Serial.print(OneWire::crc8(data, 8), HEX);
-  Serial.println();*/
 
-  // Convert the data to actual temperature
-  // because the result is a 16 bit signed integer, it should
-  // be stored to an "int16_t" type, which is always 16 bits
-  // even when compiled on a 32 bit processor.
   int16_t raw = (data[1] << 8) | data[0];
   if (type_s) {
     raw = raw << 3; // 9 bit resolution default
@@ -1063,22 +1051,6 @@ if (t == 17){
 if (t == 0){
   uint16_t packetIdPub2 = mqttClient.publish("esp32/temperature1", 1, true, result.c_str());
 }
-/*  // публикуем MQTT-сообщение в  соответствующем топике «esp32/temperatureX»
-  switch(t){
-        case 17:
-        uint16_t packetIdPub2 = mqttClient.publish("esp32/temperature", 1, true, result.c_str());
-        break;
-        case 0:
-        uint16_t packetIdPub2 = mqttClient.publish("esp32/temperature1", 1, true, result.c_str());
-        break;
-        case 3:
-        uint16_t packetIdPub2 = mqttClient.publish("esp32/temperature2", 1, true, result.c_str());
-        break;
-        case 12:
-        uint16_t packetIdPub2 = mqttClient.publish("esp32/temperature3", 1, true, result.c_str());
-        break;
-      }*/
-
   return;
 }
 }
